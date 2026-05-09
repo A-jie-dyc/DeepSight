@@ -14,20 +14,18 @@ public:
     explicit CameraCapture(QObject *parent = nullptr);
     ~CameraCapture() override;
 
-    Q_INVOKABLE void openCamera();
-    Q_INVOKABLE void stopCapture();
+public slots:
+    void openCamera();
+    void stopCapture();
 
 signals:
     void frameReady(const QImage &img);
-    void started();
     void stopped();
 
 private:
     void captureLoop();
-
     cv::VideoCapture m_cap;     //摄像头对象
     std::atomic<bool> m_isRunning = false;
-    QThread *m_captureThread = nullptr;
 };
 
 #endif // CAMERACAPTURE_H

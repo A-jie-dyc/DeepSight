@@ -1,13 +1,10 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <Qtqml>
-#include "VideoCapture.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    qmlRegisterType<CameraCapture>("DeepSight", 1, 0, "VideoCapture");
     QQmlApplicationEngine engine;
 
     QObject::connect(

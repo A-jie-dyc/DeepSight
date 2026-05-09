@@ -13,14 +13,7 @@ void CameraCapture::openCamera()
     if(!m_cap.open(0)) return;
 
     m_isRunning = true;
-
-    //创建线程并启动
-    m_captureThread = new QThread;
-    this->moveToThread(m_captureThread);
-    connect(m_captureThread,&QThread::started,this,&CameraCapture::captureLoop);
-    m_captureThread->start();
-
-    emit started();
+    captureLoop();
 }
 
 //抓图循环
@@ -36,9 +29,7 @@ void CameraCapture::captureLoop()
             continue;
         }
 
-        //opencv BGR->Qt RGB
-        cv::cvtColor(frame,frame,cv::COLOR_BGR2RGB);
-        //Mat->QImage
+        //包装成QImage
         QImage img(frame.data,frame.cols,frame.rows,frame.step,QImage::Format_RGB888);
 
         emit frameReady(img.copy());
@@ -53,13 +44,6 @@ void CameraCapture::captureLoop()
 void CameraCapture::stopCapture()
 {
     m_isRunning=false;
-    //清理线程
-    if(m_captureThread) {
-        m_captureThread->quit();
-        m_captureThread->wait();
-        m_captureThread->deleteLater();
-        m_captureThread = nullptr;
-    }
 }
 
 CameraCapture::~CameraCapture()
