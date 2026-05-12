@@ -20,6 +20,7 @@ public slots:
 
 signals:
     void frameReady(const QImage &img);
+    void started();
     void stopped();
 
 private:

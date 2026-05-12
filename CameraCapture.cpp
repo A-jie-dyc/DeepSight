@@ -2,7 +2,9 @@
 
 CameraCapture::CameraCapture(QObject *parent)
     : QObject{parent}
-{}
+{
+    connect(this,&CameraCapture::started,this,&CameraCapture::captureLoop);
+}
 
 //开启摄像头
 void CameraCapture::openCamera()
@@ -13,7 +15,7 @@ void CameraCapture::openCamera()
     if(!m_cap.open(0)) return;
 
     m_isRunning = true;
-    captureLoop();
+    emit started();
 }
 
 //抓图循环
@@ -33,7 +35,6 @@ void CameraCapture::captureLoop()
         QImage img(frame.data,frame.cols,frame.rows,frame.step,QImage::Format_RGB888);
 
         emit frameReady(img.copy());
-        QThread::msleep(30);
     }
     //关闭摄像头
     m_cap.release();
