@@ -35,6 +35,8 @@ private:
     QThread *m_aiThread;
     QThread *m_postThread;
     QThread *m_painThread;
+
+    bool m_modelReady = false;
 };
 
 #endif // CONTROLLER_H

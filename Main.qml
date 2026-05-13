@@ -15,13 +15,14 @@ Window {
         anchors.bottomMargin: 80
         fillMode: Image.PreserveAspectFit
         source: "image://frameProvider/frame"
+        cache: false
     }
 
     Connections {
         target: Controller.getProvider()
         function onImageUpdate() {
             video_screen.source = ""
-            video_screen.source = "image://frameProvider/frame"
+            video_screen.source = "image://frameProvider/frame?t=" + Date.now();
         }
     }
 

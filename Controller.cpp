@@ -25,7 +25,15 @@ Controller::Controller(QObject *parent)
     m_post->moveToThread(m_postThread);
     m_painter->moveToThread(m_painThread);
 
+    //启动线程
+    m_camThread->start();
+    m_preThread->start();
+    m_aiThread->start();
+    m_postThread->start();
+    m_painThread->start();
+
     connect(m_ai,&AIAnalysis::modelReady,m_camera,&CameraCapture::openCamera);
+    connect(m_ai,&AIAnalysis::modelReady,this,[this](){ m_modelReady = true; });
     connect(m_camera,&CameraCapture::frameReady,m_pre,&FramePreprocessor::onFrameReady);
     connect(m_pre,&FramePreprocessor::SendFrame,m_painter,&VisionPainter::ReceiveFrame);
     connect(m_pre,&FramePreprocessor::AIInputReady,m_ai,&AIAnalysis::onAIInputReady);
@@ -42,19 +50,25 @@ Controller::Controller(QObject *parent)
 
 void Controller::start()
 {
-    m_camThread->start();
-    m_preThread->start();
-    m_aiThread->start();
-    m_postThread->start();
-    m_painThread->start();
-
-    //初始化AI模型
-    QMetaObject::invokeMethod(m_ai,&AIAnalysis::initModel);
+    if(m_modelReady)
+        QMetaObject::invokeMethod(m_camera,&CameraCapture::openCamera);
+    else
+        QMetaObject::invokeMethod(m_ai,&AIAnalysis::initModel);
 }
 
 void Controller::stop()
 {
     QMetaObject::invokeMethod(m_camera,&CameraCapture::stopCapture);
+}
+
+FrameImageProvider* Controller::getProvider()
+{
+    return m_provider;
+}
+
+Controller::~Controller()
+{
+    QMetaObject::invokeMethod(m_camera,&CameraCapture::stopCapture,Qt::BlockingQueuedConnection);
 
     m_camThread->quit();
     m_camThread->wait();
@@ -70,14 +84,4 @@ void Controller::stop()
 
     m_painThread->quit();
     m_painThread->wait();
-}
-
-FrameImageProvider* Controller::getProvider()
-{
-    return m_provider;
-}
-
-Controller::~Controller()
-{
-    stop();
 }

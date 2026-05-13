@@ -79,6 +79,7 @@ void AIAnalysis::initModel()
         m_inputName = inputName.get();
         m_outputName = outputName.get();
 
+        qDebug()<<"模型初始化完成";
         emit modelReady();
     } catch (const std::exception &e) {
         qDebug()<<"模型初始化失败："<<e.what();

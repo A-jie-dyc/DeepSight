@@ -39,7 +39,6 @@ void VisionPainter::onPostProcessReady(const std::vector<DetectionBox> &boxes)
 
 void VisionPainter::ReceiveFrame(const QImage &img)
 {
-    if(!img.isNull()) {
+    if(!img.isNull())
         m_drawImg = img;
-    }
 }
