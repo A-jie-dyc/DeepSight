@@ -19,6 +19,7 @@ struct AIDataInput
     std::vector<float> normData;
 };
 
+
 struct DetectionBox
 {
     float x1 = 0.0;
@@ -28,5 +29,4 @@ struct DetectionBox
     float score = 0.0;
     int classId = 0;
 };
-
 #endif // COMMONDEF_H

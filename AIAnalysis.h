@@ -25,8 +25,8 @@ private:
 
     Ort::Env m_env = nullptr;                           //ONNX环境配置
     std::unique_ptr<Ort::Session> m_session;            //模型
-    const char *m_inputName = nullptr;                  //输入节点
-    const char *m_outputName = nullptr;                 //输出节点
+    std::string m_inputName;                  //输入节点
+    std::string m_outputName;                 //输出节点
 };
 
 #endif // AIANALYSIS_H

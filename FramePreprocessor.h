@@ -15,6 +15,7 @@ public slots:
     void onFrameReady(const QImage &img);       //接收
 
 signals:
+    void SendFrame(const QImage &img);
     void AIInputReady(const AIDataInput &input);
 
 private:

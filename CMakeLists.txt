@@ -37,6 +37,8 @@ qt_add_qml_module(appDeepSight
         SOURCES Controller.h Controller.cpp
         SOURCES AIAnalysis.h AIAnalysis.cpp
         SOURCES OutputPostProcessor.h OutputPostProcessor.cpp
+        SOURCES VisionPainter.h VisionPainter.cpp
+        SOURCES FrameImageProvider.h FrameImageProvider.cpp
 )
 
 set_target_properties(appDeepSight PROPERTIES

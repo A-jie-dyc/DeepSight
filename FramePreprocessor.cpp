@@ -1,5 +1,6 @@
 #include "FramePreprocessor.h"
 #include <opencv2/opencv.hpp>
+#include <QDebug>
 
 FramePreprocessor::FramePreprocessor(QObject *parent)
     : QObject{parent}
@@ -37,7 +38,8 @@ AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
 QImage FramePreprocessor::preprocess(const QImage &src)
 {
     //包装成Mat
-    cv::Mat mat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
+    cv::Mat srcMat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
+    cv::Mat mat = srcMat.clone();
 
     //BGR->RGB
     cv::cvtColor(mat,mat,cv::COLOR_BGR2RGB);
@@ -55,6 +57,8 @@ void FramePreprocessor::onFrameReady(const QImage &img)
     if(img.isNull()) return;
 
     QImage processdImg = preprocess(img);
+
+    emit SendFrame(processdImg);
 
     AIDataInput input = convertToAIInput(processdImg);
 

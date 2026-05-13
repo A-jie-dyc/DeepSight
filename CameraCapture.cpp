@@ -1,4 +1,5 @@
 #include "CameraCapture.h"
+#include <QDebug>
 
 CameraCapture::CameraCapture(QObject *parent)
     : QObject{parent}
@@ -30,7 +31,6 @@ void CameraCapture::captureLoop()
             QThread::msleep(10);
             continue;
         }
-
         //包装成QImage
         QImage img(frame.data,frame.cols,frame.rows,frame.step,QImage::Format_RGB888);
 

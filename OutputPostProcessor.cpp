@@ -1,5 +1,6 @@
 #include "OutputPostProcessor.h"
 #include <opencv2/core.hpp>
+#include <QDebug>
 
 OutputPostProcessor::OutputPostProcessor(QObject *parent)
     : QObject{parent}

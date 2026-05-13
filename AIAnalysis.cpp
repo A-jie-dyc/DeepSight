@@ -37,8 +37,8 @@ bool AIAnalysis::infer(const AIDataInput &input)
         inputShape.size()
     );
 
-    const char* inputNames[] = {m_inputName};
-    const char* outputNames[] = {m_outputName};
+    const char* inputNames[] = {m_inputName.c_str()};
+    const char* outputNames[] = {m_outputName.c_str()};
 
     try {
         Ort::RunOptions runOptions;
@@ -79,6 +79,7 @@ void AIAnalysis::initModel()
         m_inputName = inputName.get();
         m_outputName = outputName.get();
 
+        emit modelReady();
     } catch (const std::exception &e) {
         qDebug()<<"模型初始化失败："<<e.what();
     }
