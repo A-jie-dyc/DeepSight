@@ -8,6 +8,9 @@ OutputPostProcessor::OutputPostProcessor(QObject *parent)
 
 void OutputPostProcessor::onOutputReady(const std::vector<float> &output)
 {
+    if(!m_isRunning)
+        return;
+
     postProcess(output.data());
     emit postProcessReady(m_detBoxes);
 }

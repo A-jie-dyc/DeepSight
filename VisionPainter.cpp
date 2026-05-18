@@ -34,6 +34,9 @@ void VisionPainter::draw(const QImage &img,const std::vector<DetectionBox> &boxe
 
 void VisionPainter::onPostProcessReady(const std::vector<DetectionBox> &boxes)
 {
+    if(!m_isRunning)
+        return;
+
     draw(m_drawImg,boxes);
 }
 

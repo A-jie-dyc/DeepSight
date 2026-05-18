@@ -38,8 +38,7 @@ AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
 QImage FramePreprocessor::preprocess(const QImage &src)
 {
     //包装成Mat
-    cv::Mat srcMat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
-    cv::Mat mat = srcMat.clone();
+    cv::Mat mat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
 
     //BGR->RGB
     cv::cvtColor(mat,mat,cv::COLOR_BGR2RGB);
@@ -54,7 +53,7 @@ QImage FramePreprocessor::preprocess(const QImage &src)
 
 void FramePreprocessor::onFrameReady(const QImage &img)
 {
-    if(img.isNull()) return;
+    if(img.isNull() || !m_isRunning) return;
 
     QImage processdImg = preprocess(img);
 

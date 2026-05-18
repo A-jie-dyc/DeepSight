@@ -9,7 +9,7 @@ Controller::Controller(QObject *parent)
     m_ai = new AIAnalysis;
     m_post = new OutputPostProcessor;
     m_painter = new VisionPainter;
-    m_provider = new FrameImageProvider;
+    m_provider = new FrameImageProvider(this);
 
     //创建线程
     m_camThread = new QThread(this);
@@ -17,6 +17,9 @@ Controller::Controller(QObject *parent)
     m_aiThread = new QThread(this);
     m_postThread = new QThread(this);
     m_painThread = new QThread(this);
+
+    //连接信号槽
+    initConnections();
 
     //放置对应线程
     m_camera->moveToThread(m_camThread);
@@ -31,25 +34,12 @@ Controller::Controller(QObject *parent)
     m_aiThread->start();
     m_postThread->start();
     m_painThread->start();
-
-    connect(m_ai,&AIAnalysis::modelReady,m_camera,&CameraCapture::openCamera);
-    connect(m_ai,&AIAnalysis::modelReady,this,[this](){ m_modelReady = true; });
-    connect(m_camera,&CameraCapture::frameReady,m_pre,&FramePreprocessor::onFrameReady);
-    connect(m_pre,&FramePreprocessor::SendFrame,m_painter,&VisionPainter::ReceiveFrame);
-    connect(m_pre,&FramePreprocessor::AIInputReady,m_ai,&AIAnalysis::onAIInputReady);
-    connect(m_ai,&AIAnalysis::AIOutputReady,m_post,&OutputPostProcessor::onOutputReady);
-    connect(m_post,&OutputPostProcessor::postProcessReady,m_painter,&VisionPainter::onPostProcessReady);
-    connect(m_painter,&VisionPainter::paintReady,m_provider,&FrameImageProvider::onPaintReady);
-
-    connect(m_camThread,&QThread::finished,m_camera,&QObject::deleteLater);
-    connect(m_preThread,&QThread::finished,m_pre,&QObject::deleteLater);
-    connect(m_aiThread,&QThread::finished,m_ai,&QObject::deleteLater);
-    connect(m_postThread,&QThread::finished,m_post,&QObject::deleteLater);
-    connect(m_painThread,&QThread::finished,m_painter,&QObject::deleteLater);
 }
 
 void Controller::start()
 {
+    emit runningChanged(true);
+
     if(m_modelReady)
         QMetaObject::invokeMethod(m_camera,&CameraCapture::openCamera);
     else
@@ -58,7 +48,27 @@ void Controller::start()
 
 void Controller::stop()
 {
-    QMetaObject::invokeMethod(m_camera,&CameraCapture::stopCapture);
+    emit runningChanged(false);
+
+    QMetaObject::invokeMethod(m_camera,&CameraCapture::stopCapture,Qt::BlockingQueuedConnection);
+}
+
+void Controller::initConnections()
+{
+    connect(m_ai,&AIAnalysis::modelReady,m_camera,&CameraCapture::openCamera,Qt::QueuedConnection);
+    connect(m_ai,&AIAnalysis::modelReady,this,[this](){ m_modelReady = true; },Qt::QueuedConnection);
+
+    connect(m_camera,&CameraCapture::frameReady,m_pre,&FramePreprocessor::onFrameReady,Qt::QueuedConnection);
+    connect(m_pre,&FramePreprocessor::SendFrame,m_painter,&VisionPainter::ReceiveFrame,Qt::QueuedConnection);
+    connect(m_pre,&FramePreprocessor::AIInputReady,m_ai,&AIAnalysis::onAIInputReady,Qt::QueuedConnection);
+    connect(m_ai,&AIAnalysis::AIOutputReady,m_post,&OutputPostProcessor::onOutputReady,Qt::QueuedConnection);
+    connect(m_post,&OutputPostProcessor::postProcessReady,m_painter,&VisionPainter::onPostProcessReady,Qt::QueuedConnection);
+    connect(m_painter,&VisionPainter::paintReady,m_provider,&FrameImageProvider::onPaintReady,Qt::QueuedConnection);
+
+    connect(this,&Controller::runningChanged,m_pre,&FramePreprocessor::setRunning);
+    connect(this,&Controller::runningChanged,m_ai,&AIAnalysis::setRunning);
+    connect(this,&Controller::runningChanged,m_post,&OutputPostProcessor::setRunning);
+    connect(this,&Controller::runningChanged,m_painter,&VisionPainter::setRunning);
 }
 
 FrameImageProvider* Controller::getProvider()
@@ -68,7 +78,8 @@ FrameImageProvider* Controller::getProvider()
 
 Controller::~Controller()
 {
-    QMetaObject::invokeMethod(m_camera,&CameraCapture::stopCapture,Qt::BlockingQueuedConnection);
+    stop();
+
 
     m_camThread->quit();
     m_camThread->wait();
@@ -84,4 +95,11 @@ Controller::~Controller()
 
     m_painThread->quit();
     m_painThread->wait();
+
+    m_provider->deleteLater();
+    m_camera->deleteLater();
+    m_pre->deleteLater();
+    m_ai->deleteLater();
+    m_post->deleteLater();
+    m_painter->deleteLater();
 }

@@ -2,6 +2,7 @@
 #define OUTPUTPOSTPROCESSOR_H
 
 #include <QObject>
+#include <atomic>
 #include "CommonDef.h"
 
 class OutputPostProcessor : public QObject
@@ -12,6 +13,7 @@ public:
 
 public slots:
     void onOutputReady(const std::vector<float> &output);
+    void setRunning(bool running) { m_isRunning = running; }
 
 signals:
     void postProcessReady(const std::vector<DetectionBox> &boxes);
@@ -25,6 +27,8 @@ private:
     const int m_boxCount = 8400;                        //输出候选框总数
 
     std::vector<DetectionBox> m_detBoxes;
+
+    std::atomic<bool> m_isRunning = false;
 };
 
 #endif // OUTPUTPOSTPROCESSOR_H

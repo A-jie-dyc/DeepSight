@@ -19,10 +19,13 @@ public:
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
-
     Q_INVOKABLE FrameImageProvider* getProvider();
 
+signals:
+    void runningChanged(bool running);
+
 private:
+    void initConnections();
     CameraCapture *m_camera;
     FramePreprocessor *m_pre;
     AIAnalysis *m_ai;

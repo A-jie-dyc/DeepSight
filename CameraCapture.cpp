@@ -13,20 +13,20 @@ CameraCapture::CameraCapture(QObject *parent)
 //开启摄像头
 void CameraCapture::openCamera()
 {
-    //防止二次开启
-    if(m_isRunning) return;
-    //打开默认摄像头
-    if(!m_cap.open(0)) return;
-
+    if(!m_cap.isOpened()) {
+        if(!m_cap.open(0)) {
+            qDebug()<<"摄像头状态异常";
+            return;
+        }
+    }
     qDebug()<<"启动摄像头";
-    m_isRunning = true;
     m_timer->start(30);
 }
 
 //抓帧
 void CameraCapture::grabFrame()
 {
-    if(!m_isRunning || !m_cap.isOpened())
+    if(!m_cap.isOpened())
         return;
 
     cv::Mat frame;
@@ -43,17 +43,17 @@ void CameraCapture::grabFrame()
 //关闭
 void CameraCapture::stopCapture()
 {
-    if(!m_isRunning)
-        return;
-    m_timer->stop();
-    m_isRunning=false;
-    if(m_cap.isOpened())
-        m_cap.release();
-    qDebug()<<"摄像头已关闭";
+    if(m_timer->isActive())
+        m_timer->stop();
+
+    qDebug()<<"摄像头已暂停";
 }
 
 CameraCapture::~CameraCapture()
 {
     stopCapture();
+    if(m_cap.isOpened())
+        m_cap.release();
+
     m_timer->deleteLater();
 }

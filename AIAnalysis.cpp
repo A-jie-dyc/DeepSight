@@ -9,6 +9,9 @@ AIAnalysis::AIAnalysis(QObject *parent)
 
 void AIAnalysis::onAIInputReady(const AIDataInput &input)
 {
+    if(!m_isRunning)
+        return;
+
     bool success = infer(input);
 
     if(!success)
