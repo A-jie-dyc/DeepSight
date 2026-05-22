@@ -36,9 +36,10 @@ qt_add_qml_module(appDeepSight
         SOURCES CommonDef.h
         SOURCES Controller.h Controller.cpp
         SOURCES AIAnalysis.h AIAnalysis.cpp
-        SOURCES OutputPostProcessor.h OutputPostProcessor.cpp
+        SOURCES OutputPostprocessor.h OutputPostprocessor.cpp
         SOURCES VisionPainter.h VisionPainter.cpp
         SOURCES FrameImageProvider.h FrameImageProvider.cpp
+        SOURCES TrackManager.h TrackManager.cpp
 )
 
 set_target_properties(appDeepSight PROPERTIES
@@ -62,3 +63,8 @@ install(TARGETS appDeepSight
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_options(/fsanitize=address /Od)
+    add_link_options(/fsanitize=address)
+endif()

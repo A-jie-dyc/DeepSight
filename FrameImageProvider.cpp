@@ -1,5 +1,4 @@
 #include "FrameImageProvider.h"
-#include <QDebug>
 
 FrameImageProvider::FrameImageProvider(QObject *parent)
     : QQuickImageProvider(QQuickImageProvider::Image)

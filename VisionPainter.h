@@ -15,16 +15,16 @@ public:
 
 public slots:
     void ReceiveFrame(const QImage &img);
-    void onPostProcessReady(const std::vector<DetectionBox> &boxes);
+    void onTrackReady(const std::vector<Track> &rawTracks);
     void setRunning(bool running) { m_isRunning = running; }
 
 signals:
     void paintReady(const QImage &processImg);
 
 private:
-    void draw(const QImage &img,const std::vector<DetectionBox> &boxes);
-    QImage m_drawImg;
+    void draw(const QImage &img,const std::vector<Track> &tracks);
 
+    QImage m_drawImg;
     std::atomic<bool> m_isRunning = false;
 };
 

@@ -5,11 +5,11 @@
 #include <atomic>
 #include "CommonDef.h"
 
-class OutputPostProcessor : public QObject
+class OutputPostprocessor : public QObject
 {
     Q_OBJECT
 public:
-    explicit OutputPostProcessor(QObject *parent = nullptr);
+    explicit OutputPostprocessor(QObject *parent = nullptr);
 
 public slots:
     void onOutputReady(const std::vector<float> &output);

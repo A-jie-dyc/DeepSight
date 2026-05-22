@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QImage>
 #include <QTimer>
+#include <QMutex>
 #include <opencv2/opencv.hpp>
 
 class CameraCapture : public QObject
@@ -26,6 +27,7 @@ private:
     void grabFrame();
     cv::VideoCapture m_cap;     //摄像头对象
     QTimer *m_timer;
+    QMutex m_mutex;
 };
 
 #endif // CAMERACAPTURE_H

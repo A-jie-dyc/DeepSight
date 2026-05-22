@@ -1,10 +1,8 @@
 #include "AIAnalysis.h"
-#include <opencv2/core.hpp>
 #include <QDebug>
 
 AIAnalysis::AIAnalysis(QObject *parent)
     : QObject{parent}
-    ,m_env(Ort::Env(ORT_LOGGING_LEVEL_WARNING,"AI_Model"))
 {}
 
 void AIAnalysis::onAIInputReady(const AIDataInput &input)
@@ -68,13 +66,15 @@ bool AIAnalysis::infer(const AIDataInput &input)
 void AIAnalysis::initModel()
 {
     try {
+        m_session.reset();
         Ort::SessionOptions session_options;
         //设置推理线程数
         session_options.SetIntraOpNumThreads(1);
         //设置模型图优化
-        session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+        session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASIC);
 
-        m_session = std::make_unique<Ort::Session>(Ort::Session(m_env,MODEL_PATH,session_options));
+        m_env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "AIModel");
+        m_session = std::make_unique<Ort::Session>(m_env,MODEL_PATH,session_options);
         //创建临时内存分配器获取输入输出节点
         Ort::AllocatorWithDefaultOptions allocator;
         auto inputName = m_session->GetInputNameAllocated(0,allocator);
@@ -90,4 +90,6 @@ void AIAnalysis::initModel()
 }
 
 AIAnalysis::~AIAnalysis()
-{}
+{
+    m_session.reset();
+}

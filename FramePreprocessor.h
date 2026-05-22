@@ -21,7 +21,7 @@ signals:
     void AIInputReady(const AIDataInput &input);
 
 private:
-    QImage preprocess(const QImage &src);     //预处理
+    QImage preProcess(const QImage &src);     //预处理
 
     AIDataInput convertToAIInput(const QImage &img);    //转AI输入数据格式
 

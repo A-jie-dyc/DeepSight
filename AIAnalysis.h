@@ -25,8 +25,8 @@ signals:
 private:
     bool infer(const AIDataInput &input);
 
-    Ort::Env m_env = nullptr;                           //ONNX环境配置
-    std::unique_ptr<Ort::Session> m_session;            //模型
+    Ort::Env m_env;                           //ONNX环境配置
+    std::unique_ptr<Ort::Session> m_session;  //模型
     std::string m_inputName;                  //输入节点
     std::string m_outputName;                 //输出节点
 

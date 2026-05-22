@@ -1,6 +1,5 @@
 #include "FramePreprocessor.h"
 #include <opencv2/opencv.hpp>
-#include <QDebug>
 
 FramePreprocessor::FramePreprocessor(QObject *parent)
     : QObject{parent}
@@ -9,16 +8,18 @@ FramePreprocessor::FramePreprocessor(QObject *parent)
 AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
 {
     AIDataInput input;
+    std::vector<uint8_t> rgbData;
+
     input.width = img.width();
     input.height = img.height();
 
     int totalBytes = img.width() * img.height() * 3;
 
-    input.rgbData.resize(totalBytes);
-    memcpy(input.rgbData.data(),img.bits(),totalBytes);
+    rgbData.resize(totalBytes);
+    memcpy(rgbData.data(),img.bits(),totalBytes);
 
     //转换+归一化处理
-    input.normData.resize(input.rgbData.size());
+    input.normData.resize(rgbData.size());
 
     for(int c = 0; c < input.channels; c++) {
         for(int h = 0; h < input.height; h++) {
@@ -27,7 +28,7 @@ AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
                 int nhwc_idx = h * input.width * input.channels + w * input.channels + c;
                 int nchw_idx = c * input.height * input.width + h * input.width + w;
 
-                input.normData[nchw_idx] = static_cast<float>(input.rgbData[nhwc_idx]) / NORMALIZE_DIVISOR;
+                input.normData[nchw_idx] = static_cast<float>(rgbData[nhwc_idx]) / NORMALIZE_DIVISOR;
             }
         }
     }
@@ -35,7 +36,7 @@ AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
     return input;
 }
 
-QImage FramePreprocessor::preprocess(const QImage &src)
+QImage FramePreprocessor::preProcess(const QImage &src)
 {
     //包装成Mat
     cv::Mat mat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
@@ -55,7 +56,7 @@ void FramePreprocessor::onFrameReady(const QImage &img)
 {
     if(img.isNull() || !m_isRunning) return;
 
-    QImage processdImg = preprocess(img);
+    QImage processdImg = preProcess(img);
 
     emit SendFrame(processdImg);
 

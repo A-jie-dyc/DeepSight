@@ -13,8 +13,9 @@ CameraCapture::CameraCapture(QObject *parent)
 //开启摄像头
 void CameraCapture::openCamera()
 {
+    QMutexLocker lock(&m_mutex);
     if(!m_cap.isOpened()) {
-        if(!m_cap.open(0)) {
+        if(!m_cap.open(0, cv::CAP_DSHOW)) {
             qDebug()<<"摄像头状态异常";
             return;
         }
@@ -26,6 +27,7 @@ void CameraCapture::openCamera()
 //抓帧
 void CameraCapture::grabFrame()
 {
+    QMutexLocker lock(&m_mutex);
     if(!m_cap.isOpened())
         return;
 
@@ -43,6 +45,7 @@ void CameraCapture::grabFrame()
 //关闭
 void CameraCapture::stopCapture()
 {
+    QMutexLocker lock(&m_mutex);
     if(m_timer->isActive())
         m_timer->stop();
 
@@ -54,6 +57,4 @@ CameraCapture::~CameraCapture()
     stopCapture();
     if(m_cap.isOpened())
         m_cap.release();
-
-    m_timer->deleteLater();
 }

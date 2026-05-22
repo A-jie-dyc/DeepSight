@@ -6,6 +6,13 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+
+    qRegisterMetaType<AIDataInput>();
+    qRegisterMetaType<DetectionBox>();
+    qRegisterMetaType<Track>();
+    qRegisterMetaType<std::vector<DetectionBox>>();
+    qRegisterMetaType<std::vector<Track>>();
+
     QQmlApplicationEngine engine;
 
     Controller *controller = new Controller(&app);

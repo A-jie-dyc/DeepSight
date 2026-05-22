@@ -6,7 +6,8 @@
 #include "CameraCapture.h"
 #include "FramePreprocessor.h"
 #include "AIAnalysis.h"
-#include "OutputPostProcessor.h"
+#include "OutputPostprocessor.h"
+#include "TrackManager.h"
 #include "VisionPainter.h"
 #include "FrameImageProvider.h"
 
@@ -29,7 +30,8 @@ private:
     CameraCapture *m_camera;
     FramePreprocessor *m_pre;
     AIAnalysis *m_ai;
-    OutputPostProcessor *m_post;
+    OutputPostprocessor *m_post;
+    TrackManager *m_track;
     VisionPainter *m_painter;
     FrameImageProvider *m_provider;
 
@@ -37,6 +39,7 @@ private:
     QThread *m_preThread;
     QThread *m_aiThread;
     QThread *m_postThread;
+    QThread *m_traThread;
     QThread *m_painThread;
 
     bool m_modelReady = false;

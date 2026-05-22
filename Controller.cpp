@@ -7,7 +7,8 @@ Controller::Controller(QObject *parent)
     m_camera = new CameraCapture;
     m_pre = new FramePreprocessor;
     m_ai = new AIAnalysis;
-    m_post = new OutputPostProcessor;
+    m_post = new OutputPostprocessor;
+    m_track = new TrackManager;
     m_painter = new VisionPainter;
     m_provider = new FrameImageProvider(this);
 
@@ -16,6 +17,7 @@ Controller::Controller(QObject *parent)
     m_preThread = new QThread(this);
     m_aiThread = new QThread(this);
     m_postThread = new QThread(this);
+    m_traThread = new QThread(this);
     m_painThread = new QThread(this);
 
     //连接信号槽
@@ -26,6 +28,7 @@ Controller::Controller(QObject *parent)
     m_pre->moveToThread(m_preThread);
     m_ai->moveToThread(m_aiThread);
     m_post->moveToThread(m_postThread);
+    m_track->moveToThread(m_traThread);
     m_painter->moveToThread(m_painThread);
 
     //启动线程
@@ -33,6 +36,7 @@ Controller::Controller(QObject *parent)
     m_preThread->start();
     m_aiThread->start();
     m_postThread->start();
+    m_traThread->start();
     m_painThread->start();
 }
 
@@ -61,14 +65,16 @@ void Controller::initConnections()
     connect(m_camera,&CameraCapture::frameReady,m_pre,&FramePreprocessor::onFrameReady,Qt::QueuedConnection);
     connect(m_pre,&FramePreprocessor::SendFrame,m_painter,&VisionPainter::ReceiveFrame,Qt::QueuedConnection);
     connect(m_pre,&FramePreprocessor::AIInputReady,m_ai,&AIAnalysis::onAIInputReady,Qt::QueuedConnection);
-    connect(m_ai,&AIAnalysis::AIOutputReady,m_post,&OutputPostProcessor::onOutputReady,Qt::QueuedConnection);
-    connect(m_post,&OutputPostProcessor::postProcessReady,m_painter,&VisionPainter::onPostProcessReady,Qt::QueuedConnection);
+    connect(m_ai,&AIAnalysis::AIOutputReady,m_post,&OutputPostprocessor::onOutputReady,Qt::QueuedConnection);
+    connect(m_post,&OutputPostprocessor::postProcessReady,m_track,&TrackManager::onPostProcessReady,Qt::QueuedConnection);
+    connect(m_track,&TrackManager::trackReady,m_painter,&VisionPainter::onTrackReady,Qt::QueuedConnection);
     connect(m_painter,&VisionPainter::paintReady,m_provider,&FrameImageProvider::onPaintReady,Qt::QueuedConnection);
 
-    connect(this,&Controller::runningChanged,m_pre,&FramePreprocessor::setRunning);
-    connect(this,&Controller::runningChanged,m_ai,&AIAnalysis::setRunning);
-    connect(this,&Controller::runningChanged,m_post,&OutputPostProcessor::setRunning);
-    connect(this,&Controller::runningChanged,m_painter,&VisionPainter::setRunning);
+    connect(this,&Controller::runningChanged,m_pre,&FramePreprocessor::setRunning,Qt::QueuedConnection);
+    connect(this,&Controller::runningChanged,m_ai,&AIAnalysis::setRunning,Qt::QueuedConnection);
+    connect(this,&Controller::runningChanged,m_post,&OutputPostprocessor::setRunning,Qt::QueuedConnection);
+    connect(this,&Controller::runningChanged,m_track,&TrackManager::setRunning,Qt::QueuedConnection);
+    connect(this,&Controller::runningChanged,m_painter,&VisionPainter::setRunning,Qt::QueuedConnection);
 }
 
 FrameImageProvider* Controller::getProvider()
@@ -79,7 +85,6 @@ FrameImageProvider* Controller::getProvider()
 Controller::~Controller()
 {
     stop();
-
 
     m_camThread->quit();
     m_camThread->wait();
@@ -93,13 +98,16 @@ Controller::~Controller()
     m_postThread->quit();
     m_postThread->wait();
 
+    m_traThread->quit();
+    m_traThread->wait();
+
     m_painThread->quit();
     m_painThread->wait();
 
-    m_provider->deleteLater();
-    m_camera->deleteLater();
-    m_pre->deleteLater();
-    m_ai->deleteLater();
-    m_post->deleteLater();
-    m_painter->deleteLater();
+    delete m_camera;
+    delete m_pre;
+    delete m_ai;
+    delete m_post;
+    delete m_track;
+    delete m_painter;
 }

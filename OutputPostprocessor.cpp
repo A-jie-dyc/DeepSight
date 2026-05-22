@@ -1,12 +1,10 @@
-#include "OutputPostProcessor.h"
-#include <opencv2/core.hpp>
-#include <QDebug>
+#include "OutputPostprocessor.h"
 
-OutputPostProcessor::OutputPostProcessor(QObject *parent)
+OutputPostprocessor::OutputPostprocessor(QObject *parent)
     : QObject{parent}
 {}
 
-void OutputPostProcessor::onOutputReady(const std::vector<float> &output)
+void OutputPostprocessor::onOutputReady(const std::vector<float> &output)
 {
     if(!m_isRunning)
         return;
@@ -15,7 +13,7 @@ void OutputPostProcessor::onOutputReady(const std::vector<float> &output)
     emit postProcessReady(m_detBoxes);
 }
 
-void OutputPostProcessor::postProcess(const float *output)
+void OutputPostprocessor::postProcess(const float *output)
 {
     m_detBoxes.clear();
 
@@ -34,7 +32,7 @@ void OutputPostProcessor::postProcess(const float *output)
                 classId = j - 4;
             }
         }
-        if(maxScore > m_confThreshold) {
+        if(maxScore > m_confThreshold && classId == 0) {
             DetectionBox box;
             box.x1 = x - w / 2;
             box.y1 = y - h / 2;
