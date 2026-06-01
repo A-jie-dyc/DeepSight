@@ -18,9 +18,9 @@ signals:
     void trackReady(const std::vector<Track> &tracks);
 
 private:
+    std::vector<Track> processTracks(const std::vector<DetectionBox> &boxes);
     float iou(const DetectionBox &a, const DetectionBox &b);
     cv::Point2f getCenterPos(const DetectionBox &box);
-    cv::Point2f getPredictPos(const cv::Point2f &now, const cv::Point2f &last);
 
     std::vector<Track> m_tracks;
     int m_nextId = 1;

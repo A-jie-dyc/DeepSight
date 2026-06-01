@@ -5,62 +5,48 @@ FramePreprocessor::FramePreprocessor(QObject *parent)
     : QObject{parent}
 {}
 
-AIDataInput FramePreprocessor::convertToAIInput(const QImage &img)
+void FramePreprocessor::preProcess(const cv::Mat &mat)
 {
-    AIDataInput input;
-    std::vector<uint8_t> rgbData;
-
-    input.width = img.width();
-    input.height = img.height();
-
-    int totalBytes = img.width() * img.height() * 3;
-
-    rgbData.resize(totalBytes);
-    memcpy(rgbData.data(),img.bits(),totalBytes);
-
-    //转换+归一化处理
-    input.normData.resize(rgbData.size());
-
-    for(int c = 0; c < input.channels; c++) {
-        for(int h = 0; h < input.height; h++) {
-            for(int w = 0; w < input.width; w++) {
-
-                int nhwc_idx = h * input.width * input.channels + w * input.channels + c;
-                int nchw_idx = c * input.height * input.width + h * input.width + w;
-
-                input.normData[nchw_idx] = static_cast<float>(rgbData[nhwc_idx]) / NORMALIZE_DIVISOR;
-            }
-        }
-    }
-
-    return input;
-}
-
-QImage FramePreprocessor::preProcess(const QImage &src)
-{
-    //包装成Mat
-    cv::Mat mat(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
-
     //BGR->RGB
-    cv::cvtColor(mat,mat,cv::COLOR_BGR2RGB);
+    cv::cvtColor(mat,m_matForDraw,cv::COLOR_BGR2RGB);
 
-    //缩放尺寸
-    cv::resize(mat,mat,cv::Size(MODEL_WIDTH,MODEL_HEIGHT));
+    // Letterbox: 等比例缩放 + 灰色填充，保持宽高比
+    float scale = std::min((float)MODEL_WIDTH / m_matForDraw.cols,
+                           (float)MODEL_HEIGHT / m_matForDraw.rows);
+    int newW = (int)(m_matForDraw.cols * scale);
+    int newH = (int)(m_matForDraw.rows * scale);
 
-    QImage img(mat.data,mat.cols,mat.rows,mat.step,QImage::Format_RGB888);
+    cv::Mat resized;
+    cv::resize(m_matForDraw, resized, cv::Size(newW, newH));
 
-    return img.copy();
+    int padLeft = (MODEL_WIDTH - newW) / 2;
+    int padTop  = (MODEL_HEIGHT - newH) / 2;
+
+    cv::Mat letterboxed(MODEL_HEIGHT, MODEL_WIDTH, CV_8UC3, cv::Scalar(114, 114, 114));
+    resized.copyTo(letterboxed(cv::Rect(padLeft, padTop, newW, newH)));
+
+    m_params.scale = scale;
+    m_params.padLeft = padLeft;
+    m_params.padTop = padTop;
+
+    //缩放尺寸+归一化+数据排序转换,输出4维Mat适配ONNX
+    m_matForAI = cv::dnn::blobFromImage(
+        letterboxed,
+        1.0f / NORMALIZE_DIVISOR,
+        cv::Size(MODEL_WIDTH, MODEL_HEIGHT),
+        cv::Scalar(),
+        false,
+        false,
+        CV_32F
+    );
 }
 
-void FramePreprocessor::onFrameReady(const QImage &img)
+void FramePreprocessor::onFrameReady(const cv::Mat &rawMat)
 {
-    if(img.isNull() || !m_isRunning) return;
+    if(rawMat.empty() || !m_isRunning) return;
 
-    QImage processdImg = preProcess(img);
+    preProcess(rawMat);
 
-    emit SendFrame(processdImg);
-
-    AIDataInput input = convertToAIInput(processdImg);
-
-    emit AIInputReady(input);
+    emit AIInputReady(m_matForAI, m_params);
+    emit sendFrame(m_matForDraw);
 }

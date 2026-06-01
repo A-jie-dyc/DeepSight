@@ -31,7 +31,7 @@ qt_add_qml_module(appDeepSight
     URI DeepSight
     QML_FILES
         Main.qml
-        SOURCES CameraCapture.h CameraCapture.cpp
+        SOURCES MediaCapture.h MediaCapture.cpp
         SOURCES FramePreprocessor.h FramePreprocessor.cpp
         SOURCES CommonDef.h
         SOURCES Controller.h Controller.cpp
@@ -40,6 +40,8 @@ qt_add_qml_module(appDeepSight
         SOURCES VisionPainter.h VisionPainter.cpp
         SOURCES FrameImageProvider.h FrameImageProvider.cpp
         SOURCES TrackManager.h TrackManager.cpp
+        SOURCES FlowCounter.h FlowCounter.cpp
+        SOURCES
 )
 
 set_target_properties(appDeepSight PROPERTIES

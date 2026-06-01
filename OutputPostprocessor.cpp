@@ -4,16 +4,16 @@ OutputPostprocessor::OutputPostprocessor(QObject *parent)
     : QObject{parent}
 {}
 
-void OutputPostprocessor::onOutputReady(const std::vector<float> &output)
+void OutputPostprocessor::onOutputReady(const std::vector<float> &output, const PreprocessParams &params)
 {
     if(!m_isRunning)
         return;
 
-    postProcess(output.data());
+    postProcess(output.data(), params);
     emit postProcessReady(m_detBoxes);
 }
 
-void OutputPostprocessor::postProcess(const float *output)
+void OutputPostprocessor::postProcess(const float *output, const PreprocessParams &params)
 {
     m_detBoxes.clear();
 
@@ -77,5 +77,13 @@ void OutputPostprocessor::postProcess(const float *output)
             }
         }
         m_detBoxes = std::move(finalBoxes);
+    }
+
+    // 将检测框从 letterbox 640x640 空间映射回原始图像空间
+    for (auto &box : m_detBoxes) {
+        box.x1 = (box.x1 - params.padLeft) / params.scale;
+        box.y1 = (box.y1 - params.padTop)  / params.scale;
+        box.x2 = (box.x2 - params.padLeft) / params.scale;
+        box.y2 = (box.y2 - params.padTop)  / params.scale;
     }
 }

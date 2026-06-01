@@ -1,44 +1,41 @@
 #include "AIAnalysis.h"
 #include <QDebug>
+#include <cstring>
 
 AIAnalysis::AIAnalysis(QObject *parent)
     : QObject{parent}
 {}
 
-void AIAnalysis::onAIInputReady(const AIDataInput &input)
+void AIAnalysis::onAIInputReady(const cv::Mat &matForAI, const PreprocessParams &params)
 {
     if(!m_isRunning)
         return;
 
-    bool success = infer(input);
+    bool success = infer(matForAI, params);
 
     if(!success)
         qDebug()<<"AI异常分析失败";
 }
 
-bool AIAnalysis::infer(const AIDataInput &input)
+bool AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
 {
-    if(!m_session || input.normData.empty())
+    if(!m_session || mat.empty() || mat.type() != CV_32F)
         return false;
 
-    std::vector<int64_t> inputShape = {
-        1,
-        input.channels,
-        input.height,
-        input.width
-    };
-    //创建CPU内存信息
-    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator,OrtMemTypeDefault);
-    //vector<float>封装成Tensor
+    //直接拷贝
+    std::memcpy(m_inputData.data(), mat.ptr<float>(0),
+                m_inputData.size() * sizeof(float));
+
+    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
         memoryInfo,
-        const_cast<float*>(input.normData.data()),
-        input.normData.size(),
-        inputShape.data(),
-        inputShape.size()
+        m_inputData.data(),
+        m_inputData.size(),
+        m_inputShape.data(),
+        m_inputShape.size()
     );
 
-    const char* inputNames[] = {m_inputName.c_str()};
+    const char* inputNames[]  = {m_inputName.c_str()};
     const char* outputNames[] = {m_outputName.c_str()};
 
     try {
@@ -54,33 +51,40 @@ bool AIAnalysis::infer(const AIDataInput &input)
 
         float *outputPtr = outputTensors[0].GetTensorMutableData<float>();
         size_t outputSize = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> output(outputPtr,outputPtr + outputSize);
+        std::vector<float> output(outputPtr, outputPtr + outputSize);
 
-        emit AIOutputReady(output);
+        emit AIOutputReady(output, params);
         return true;
-    }catch(...) {
+    } catch (...) {
         return false;
     }
 }
 
 void AIAnalysis::initModel()
 {
+    if(m_session)
+        return;
+
     try {
         m_session.reset();
         Ort::SessionOptions session_options;
         //设置推理线程数
-        session_options.SetIntraOpNumThreads(1);
+        session_options.SetIntraOpNumThreads(6);
+        //设置主模型会话数
+        session_options.SetInterOpNumThreads(1);
         //设置模型图优化
         session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASIC);
 
-        m_env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "AIModel");
-        m_session = std::make_unique<Ort::Session>(m_env,MODEL_PATH,session_options);
+        m_session = std::make_unique<Ort::Session>(g_ortEnv,MODEL_PATH,session_options);
         //创建临时内存分配器获取输入输出节点
         Ort::AllocatorWithDefaultOptions allocator;
         auto inputName = m_session->GetInputNameAllocated(0,allocator);
         auto outputName = m_session->GetOutputNameAllocated(0,allocator);
         m_inputName = inputName.get();
         m_outputName = outputName.get();
+
+        // 预分配输入数据缓冲区 (1 x 3 x 640 x 640)
+        m_inputData.resize(1 * 3 * MODEL_WIDTH * MODEL_HEIGHT);
 
         qDebug()<<"模型初始化完成";
         emit modelReady();

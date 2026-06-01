@@ -12,14 +12,14 @@ public:
     explicit OutputPostprocessor(QObject *parent = nullptr);
 
 public slots:
-    void onOutputReady(const std::vector<float> &output);
+    void onOutputReady(const std::vector<float> &output, const PreprocessParams &params);
     void setRunning(bool running) { m_isRunning = running; }
 
 signals:
     void postProcessReady(const std::vector<DetectionBox> &boxes);
 
 private:
-    void postProcess(const float *output);
+    void postProcess(const float *output, const PreprocessParams &params);
 
     const float m_confThreshold = 0.25f;                //置信度阈值
     const float m_nmsThreshold = 0.5f;                  //NMS阈值

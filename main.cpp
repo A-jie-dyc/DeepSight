@@ -7,15 +7,16 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    qRegisterMetaType<AIDataInput>();
+    qRegisterMetaType<cv::Mat>();
     qRegisterMetaType<DetectionBox>();
     qRegisterMetaType<Track>();
+    qRegisterMetaType<PreprocessParams>();
     qRegisterMetaType<std::vector<DetectionBox>>();
     qRegisterMetaType<std::vector<Track>>();
 
-    QQmlApplicationEngine engine;
-
     Controller *controller = new Controller(&app);
+
+    QQmlApplicationEngine engine;
 
     QObject::connect(
         &engine,

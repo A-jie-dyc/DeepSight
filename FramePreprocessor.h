@@ -13,18 +13,19 @@ public:
     explicit FramePreprocessor(QObject *parent = nullptr);
 
 public slots:
-    void onFrameReady(const QImage &img);       //接收
+    void onFrameReady(const cv::Mat &rawMat);       //接收
     void setRunning(bool running) { m_isRunning = running; }
 
 signals:
-    void SendFrame(const QImage &img);
-    void AIInputReady(const AIDataInput &input);
+    void sendFrame(const cv::Mat &matForDraw);
+    void AIInputReady(const cv::Mat &matForAI, const PreprocessParams &params);
 
 private:
-    QImage preProcess(const QImage &src);     //预处理
+    void preProcess(const cv::Mat &mat);     //预处理
 
-    AIDataInput convertToAIInput(const QImage &img);    //转AI输入数据格式
-
+    cv::Mat m_matForDraw;
+    cv::Mat m_matForAI;
+    PreprocessParams m_params;
     std::atomic<bool> m_isRunning = false;
 };
 
