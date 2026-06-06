@@ -18,7 +18,7 @@ public:
 public slots:
     void initModel();
     void onAIInputReady(const cv::Mat &matForAI, const PreprocessParams &params);
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void modelReady();
@@ -36,6 +36,7 @@ private:
     std::array<int64_t, 4> m_inputShape{1, 3, MODEL_WIDTH, MODEL_HEIGHT};
 
     std::atomic<bool> m_isRunning = false;
+    std::atomic<bool> m_busy = false;
 };
 
 #endif // AIANALYSIS_H

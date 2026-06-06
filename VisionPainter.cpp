@@ -65,6 +65,3 @@ void VisionPainter::receiveFrame(const cv::Mat &matForDraw)
     if(!matForDraw.empty())
         m_currentImg = convertMatToQImage(matForDraw);
 }
-
-VisionPainter::~VisionPainter()
-{}

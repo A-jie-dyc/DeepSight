@@ -13,7 +13,6 @@ Controller::Controller(QObject *parent)
     m_track = new TrackManager;
     m_painter = new VisionPainter;
     m_counter = new FlowCounter;
-    m_provider = new FrameImageProvider(this);
 
     //创建线程
     m_mediaThread = new QThread;
@@ -88,7 +87,7 @@ void Controller::initConnections()
     connect(m_post,&OutputPostprocessor::postProcessReady,m_track,&TrackManager::onPostProcessReady,Qt::QueuedConnection);
     connect(m_track,&TrackManager::trackReady,m_painter,&VisionPainter::onTrackReady,Qt::QueuedConnection);
     connect(m_track,&TrackManager::trackReady,m_counter,&FlowCounter::onTrackReady,Qt::QueuedConnection);
-    connect(m_painter,&VisionPainter::paintReady,m_provider,&FrameImageProvider::onPaintReady,Qt::QueuedConnection);
+    connect(m_painter,&VisionPainter::paintReady,this,&Controller::frameDeliver,Qt::QueuedConnection);
     connect(m_counter,&FlowCounter::flowDataChanged,this,[this](int enter, int people){
         m_enterTotal = enter;
         m_currentPeople = people;
@@ -121,14 +120,17 @@ int Controller::getCurrentPeople() const
     return m_currentPeople;
 }
 
-FrameImageProvider* Controller::getProvider()
-{
-    return m_provider;
-}
-
 Controller::~Controller()
 {
     stop();
+
+    m_media->deleteLater();
+    m_pre->deleteLater();
+    m_ai->deleteLater();
+    m_post->deleteLater();
+    m_track->deleteLater();
+    m_painter->deleteLater();
+    m_counter->deleteLater();
 
     m_mediaThread->quit();m_mediaThread->wait();
     m_preThread->quit();m_preThread->wait();
@@ -137,14 +139,6 @@ Controller::~Controller()
     m_trackThread->quit();m_trackThread->wait();
     m_painThread->quit();m_painThread->wait();
     m_countThread->quit();m_countThread->wait();
-
-    delete m_media;
-    delete m_pre;
-    delete m_ai;
-    delete m_post;
-    delete m_track;
-    delete m_painter;
-    delete m_counter;
 
     delete m_mediaThread;
     delete m_preThread;

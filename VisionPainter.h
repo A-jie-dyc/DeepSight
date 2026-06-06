@@ -12,12 +12,11 @@ class VisionPainter : public QObject
     Q_OBJECT
 public:
     explicit VisionPainter(QObject *parent = nullptr);
-    ~VisionPainter() override;
 
 public slots:
     void receiveFrame(const cv::Mat &matForDraw);
     void onTrackReady(const std::vector<Track> &rawTracks);
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void paintReady(const QImage &processImg);

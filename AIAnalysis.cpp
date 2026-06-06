@@ -1,6 +1,7 @@
 #include "AIAnalysis.h"
 #include <QDebug>
 #include <cstring>
+#include <thread>
 
 AIAnalysis::AIAnalysis(QObject *parent)
     : QObject{parent}
@@ -11,10 +12,18 @@ void AIAnalysis::onAIInputReady(const cv::Mat &matForAI, const PreprocessParams 
     if(!m_isRunning)
         return;
 
+    bool expected = false;
+    if(!m_busy.compare_exchange_strong(expected, true)) {
+        qDebug()<<"AI忙，丢一帧";
+        return;
+    }
+
     bool success = infer(matForAI, params);
 
     if(!success)
         qDebug()<<"AI异常分析失败";
+
+    m_busy.store(false);
 }
 
 bool AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
@@ -69,7 +78,13 @@ void AIAnalysis::initModel()
         m_session.reset();
         Ort::SessionOptions session_options;
         //设置推理线程数
-        session_options.SetIntraOpNumThreads(6);
+        unsigned int cpu_cores = std::thread::hardware_concurrency();
+        int best_threads = 4;
+        if(cpu_cores > 0) {
+            best_threads = std::max(1, (int)(cpu_cores / 2));
+            best_threads = std::min(best_threads, 8);
+        }
+        session_options.SetIntraOpNumThreads(best_threads);
         //设置主模型会话数
         session_options.SetInterOpNumThreads(1);
         //设置模型图优化

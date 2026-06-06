@@ -6,8 +6,8 @@ import QtCore
 import DeepSight
 
 Window {
-    width: 640
-    height: 480
+    width: 800
+    height: 720
     visible: true
     title: qsTr("智能人流统计系统")
     color: "#2c3e50"
@@ -62,25 +62,15 @@ Window {
         }
     }
 
-    Image {
+    FrameDisplay {
         id: video_screen
+        objectName: "videoScreen"
         anchors.top: parent.top
         anchors.topMargin: 60
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: topBtnLayout.top
         anchors.margins: 5
-        fillMode: Image.PreserveAspectFit
-        source: "image://frameProvider/frame"
-        cache: false
-    }
-
-    Connections {
-        target: Controller.getProvider()
-        function onImageUpdate() {
-            video_screen.source = ""
-            video_screen.source = "image://frameProvider/frame?t=" + Date.now();
-        }
     }
 
     RowLayout {

@@ -10,7 +10,7 @@
 #include "TrackManager.h"
 #include "VisionPainter.h"
 #include "FlowCounter.h"
-#include "FrameImageProvider.h"
+#include "FrameDisplay.h"
 
 class Controller : public QObject
 {
@@ -26,7 +26,6 @@ public:
     Q_INVOKABLE void openVideo(const QString &videoPath);
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
-    Q_INVOKABLE FrameImageProvider* getProvider();
     Q_INVOKABLE void resetFlowCount();
 
     int getEnterTotal() const;
@@ -35,6 +34,7 @@ public:
 signals:
     void runningChanged(bool running);
     void flowDataUpdated();
+    void frameDeliver(const QImage &image);
 
 private:
     void initConnections();
@@ -45,7 +45,6 @@ private:
     TrackManager *m_track;
     VisionPainter *m_painter;
     FlowCounter *m_counter;
-    FrameImageProvider *m_provider;
 
     QThread *m_mediaThread;
     QThread *m_preThread;

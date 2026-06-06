@@ -14,7 +14,7 @@ public:
 
 public slots:
     void onFrameReady(const cv::Mat &rawMat);       //接收
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void sendFrame(const cv::Mat &matForDraw);

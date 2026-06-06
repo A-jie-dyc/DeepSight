@@ -13,7 +13,7 @@ public:
 
 public slots:
     void onOutputReady(const std::vector<float> &output, const PreprocessParams &params);
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void postProcessReady(const std::vector<DetectionBox> &boxes);
@@ -21,13 +21,7 @@ signals:
 private:
     void postProcess(const float *output, const PreprocessParams &params);
 
-    const float m_confThreshold = 0.25f;                //置信度阈值
-    const float m_nmsThreshold = 0.5f;                  //NMS阈值
-    const int m_outDim = 84;                            //输出维度
-    const int m_boxCount = 8400;                        //输出候选框总数
-
     std::vector<DetectionBox> m_detBoxes;
-
     std::atomic<bool> m_isRunning = false;
 };
 

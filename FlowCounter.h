@@ -16,7 +16,7 @@ public:
 
 public slots:
     void onTrackReady(const std::vector<Track> &rawTracks);
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
     void resetCountData();
 
 signals:

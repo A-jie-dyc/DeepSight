@@ -83,6 +83,9 @@ void TrackManager::onPostProcessReady(const std::vector<DetectionBox> &rawBoxes)
     m_tracks = processTracks(rawBoxes);
 
     emit trackReady(m_tracks);
+
+    if(m_nextId > 300)
+        m_nextId = 1;
 }
 
 float TrackManager::iou(const DetectionBox &a, const DetectionBox &b)

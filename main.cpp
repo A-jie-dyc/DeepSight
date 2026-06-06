@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include "Controller.h"
+#include "FrameDisplay.h"
 
 int main(int argc, char *argv[])
 {
@@ -24,12 +25,20 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
-    //注册图像提供者
-    engine.addImageProvider("frameProvider",controller->getProvider());
 
     engine.rootContext()->setContextProperty("Controller",controller);
 
     engine.loadFromModule("DeepSight", "Main");
+
+    // QML加载完成后，将paintReady中继信号连接到FrameDisplay
+    QObject *root = engine.rootObjects().value(0);
+    if (root) {
+        FrameDisplay *display = root->findChild<FrameDisplay*>("videoScreen");
+        if (display) {
+            QObject::connect(controller, &Controller::frameDeliver,
+                             display, &FrameDisplay::updateFrame);
+        }
+    }
 
     return QCoreApplication::exec();
 }

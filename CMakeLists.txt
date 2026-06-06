@@ -38,9 +38,10 @@ qt_add_qml_module(appDeepSight
         SOURCES AIAnalysis.h AIAnalysis.cpp
         SOURCES OutputPostprocessor.h OutputPostprocessor.cpp
         SOURCES VisionPainter.h VisionPainter.cpp
-        SOURCES FrameImageProvider.h FrameImageProvider.cpp
+        SOURCES FrameDisplay.h FrameDisplay.cpp
         SOURCES TrackManager.h TrackManager.cpp
         SOURCES FlowCounter.h FlowCounter.cpp
+        SOURCES
         SOURCES
 )
 

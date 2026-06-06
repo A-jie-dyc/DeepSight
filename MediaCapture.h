@@ -6,7 +6,7 @@
 #include <QImage>
 #include <QTimer>
 #include <QString>
-#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
 
 class MediaCapture : public QObject
 {
@@ -26,7 +26,8 @@ signals:
 private:
     void grabFrame();
     cv::VideoCapture m_cap;     //摄像头对象
-    QTimer *m_timer;
+    QTimer *m_timer = nullptr;
+    bool m_isCamera = false;
 };
 
 #endif // MEDIACAPTURE_H

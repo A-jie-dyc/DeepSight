@@ -6,14 +6,18 @@
 #include <opencv2/core.hpp>
 
 //模型常量
-constexpr int MODEL_WIDTH = 640;
-constexpr int MODEL_HEIGHT = 640;
-
-constexpr float NORMALIZE_DIVISOR = 255.0f;
-constexpr const wchar_t* MODEL_PATH = L"models/yolov8n.onnx";
+constexpr int MODEL_WIDTH = 640;                                        //宽
+constexpr int MODEL_HEIGHT = 640;                                       //高
+constexpr float NORMALIZE_DIVISOR = 255.0f;                             //归一化
+constexpr const wchar_t* MODEL_PATH = L"models/yolov8n.onnx";           //模型文件路径
+//后处理常量
+constexpr float CONF_THRESHOLD = 0.25f;                                 //置信度阈值
+constexpr float NMS_THRESHOLD = 0.5f;                                   //NMS阈值
+constexpr int OUT_DIM = 84;                                             //输出维度
+constexpr int BOX_COUNT = 8400;                                         //输出候选框总数
 //跟踪常量
-constexpr int MAX_LOST_FRAMES = 10;
-constexpr float TRACK_IOU_THRES = 0.4f;
+constexpr int MAX_LOST_FRAMES = 10;                                     //最大丢帧数
+constexpr float TRACK_IOU_THRES = 0.4f;                                 //跟踪判定IOU
 
 struct DetectionBox
 {

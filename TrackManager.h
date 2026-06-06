@@ -12,7 +12,7 @@ public:
 
 public slots:
     void onPostProcessReady(const std::vector<DetectionBox> &rawBoxes);
-    void setRunning(bool running) { m_isRunning = running; }
+    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void trackReady(const std::vector<Track> &tracks);

@@ -1,5 +1,7 @@
 #include "FramePreprocessor.h"
-#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/dnn.hpp>
+#include <QDebug>
 
 FramePreprocessor::FramePreprocessor(QObject *parent)
     : QObject{parent}
@@ -47,6 +49,6 @@ void FramePreprocessor::onFrameReady(const cv::Mat &rawMat)
 
     preProcess(rawMat);
 
-    emit AIInputReady(m_matForAI, m_params);
-    emit sendFrame(m_matForDraw);
+    emit AIInputReady(m_matForAI.clone(), m_params);
+    emit sendFrame(m_matForDraw.clone());
 }
