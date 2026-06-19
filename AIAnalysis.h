@@ -17,15 +17,17 @@ public:
 
 public slots:
     void initModel();
-    void onAIInputReady(const cv::Mat &matForAI, const PreprocessParams &params);
+    void onAIInputReady(uint64_t frameId, const cv::Mat &matForAI, const PreprocessParams &params);
     void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void modelReady();
-    void AIOutputReady(const std::vector<float> &output, const PreprocessParams &params);
+    void AIOutputReady(uint64_t frameId, const std::vector<float> &output, const PreprocessParams &params);
+    void errorOccurred(ErrorDef::ErrorType type, const QString &msg);
 
 private:
-    bool infer(const cv::Mat &mat, const PreprocessParams &params);
+    //返回有效数组或空值
+    std::optional<std::vector<float>> infer(const cv::Mat &mat, const PreprocessParams &params);
 
     std::unique_ptr<Ort::Session> m_session;
     std::string m_inputName;

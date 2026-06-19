@@ -7,7 +7,7 @@ AIAnalysis::AIAnalysis(QObject *parent)
     : QObject{parent}
 {}
 
-void AIAnalysis::onAIInputReady(const cv::Mat &matForAI, const PreprocessParams &params)
+void AIAnalysis::onAIInputReady(uint64_t frameId, const cv::Mat &matForAI, const PreprocessParams &params)
 {
     if(!m_isRunning)
         return;
@@ -17,19 +17,25 @@ void AIAnalysis::onAIInputReady(const cv::Mat &matForAI, const PreprocessParams 
         qDebug()<<"AI忙，丢一帧";
         return;
     }
-
-    bool success = infer(matForAI, params);
-
-    if(!success)
-        qDebug()<<"AI异常分析失败";
+    std::optional<std::vector<float>> output;
+    try {
+        output = infer(matForAI, params);
+    } catch (...) {
+        qDebug()<<"AI分析失败,帧号:"<<frameId;
+        m_busy.store(false);
+        return;
+    }
 
     m_busy.store(false);
+
+    if(output.has_value())
+        emit AIOutputReady(frameId, std::move(output.value()), params);
 }
 
-bool AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
+std::optional<std::vector<float>> AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
 {
     if(!m_session || mat.empty() || mat.type() != CV_32F)
-        return false;
+        return std::nullopt;
 
     //直接拷贝
     std::memcpy(m_inputData.data(), mat.ptr<float>(0),
@@ -47,26 +53,20 @@ bool AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
     const char* inputNames[]  = {m_inputName.c_str()};
     const char* outputNames[] = {m_outputName.c_str()};
 
-    try {
-        Ort::RunOptions runOptions;
-        std::vector<Ort::Value> outputTensors = m_session->Run(
-            runOptions,
-            inputNames,
-            &inputTensor,
-            1,
-            outputNames,
-            1
-        );
+    Ort::RunOptions runOptions;
+    std::vector<Ort::Value> outputTensors = m_session->Run(
+        runOptions,
+        inputNames,
+        &inputTensor,
+        1,
+        outputNames,
+        1
+    );
 
-        float *outputPtr = outputTensors[0].GetTensorMutableData<float>();
-        size_t outputSize = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> output(outputPtr, outputPtr + outputSize);
+    float *outputPtr = outputTensors[0].GetTensorMutableData<float>();
+    size_t outputSize = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
 
-        emit AIOutputReady(output, params);
-        return true;
-    } catch (...) {
-        return false;
-    }
+    return std::vector<float>(outputPtr, outputPtr + outputSize);
 }
 
 void AIAnalysis::initModel()
@@ -105,6 +105,7 @@ void AIAnalysis::initModel()
         emit modelReady();
     } catch (const std::exception &e) {
         qDebug()<<"模型初始化失败："<<e.what();
+        emit errorOccurred(ErrorDef::Error_ModelLoad, QString("模型加载失败：") + QString::fromStdString(e.what()));
     }
 }
 

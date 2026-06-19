@@ -18,18 +18,20 @@ void MediaCapture::openMedia(const QString &path)
 
     if(m_isCamera) {
         if(!m_cap.open(cameraId, cv::CAP_DSHOW)) {
-            qDebug()<<"摄像头状态异常";
+
+            emit errorOccurred(ErrorDef::Error_Camera, QString("摄像头设备%1打开失败").arg(cameraId));
             return;
         }
     }
     else {
         QString localPath = QUrl(path).toLocalFile();
         if(!m_cap.open(localPath.toStdString())) {
-            qDebug()<<"视频打开失败";
+            emit errorOccurred(ErrorDef::Error_VideoOpen, QString("视频文件" + localPath +"打开失败"));
             return;
         }
     }
     qDebug()<<"媒体流设置成功";
+    grabFrame();
 }
 
 //抓帧

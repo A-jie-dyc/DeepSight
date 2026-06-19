@@ -75,14 +75,14 @@ std::vector<Track> TrackManager::processTracks(const std::vector<DetectionBox> &
     return newTracks;
 }
 
-void TrackManager::onPostProcessReady(const std::vector<DetectionBox> &rawBoxes)
+void TrackManager::onPostProcessReady(uint64_t frameId, const std::vector<DetectionBox> &rawBoxes)
 {
     if(!m_isRunning)
         return;
 
     m_tracks = processTracks(rawBoxes);
 
-    emit trackReady(m_tracks);
+    emit trackReady(frameId, m_tracks);
 
     if(m_nextId > 300)
         m_nextId = 1;

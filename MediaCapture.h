@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QString>
 #include <opencv2/videoio.hpp>
+#include "CommonDef.h"
 
 class MediaCapture : public QObject
 {
@@ -22,9 +23,11 @@ public slots:
 
 signals:
     void frameReady(const cv::Mat &mat);
+    void errorOccurred(ErrorDef::ErrorType type, const QString &msg);
 
 private:
     void grabFrame();
+
     cv::VideoCapture m_cap;     //摄像头对象
     QTimer *m_timer = nullptr;
     bool m_isCamera = false;

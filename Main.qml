@@ -6,11 +6,25 @@ import QtCore
 import DeepSight
 
 Window {
+    id: mainWindow
     width: 800
     height: 720
     visible: true
     title: qsTr("智能人流统计系统")
     color: "#2c3e50"
+
+    ErrorDialog {
+        id: errorDialog
+        parent: mainWindow
+    }
+
+    Connections {
+        target: Controller
+        function onErrorHappened(errorInfo) {
+            errorDialog.errorInfo = errorInfo
+            errorDialog.open()
+        }
+    }
 
     Rectangle {
         anchors.top: parent.top
@@ -53,7 +67,7 @@ Window {
 
                 Text {
                     text: Controller.currentPeople
-                    color: "#3498db" // 蓝色高亮
+                    color: "#3498db" //蓝色高亮
                     font.pixelSize: 22
                     font.bold: true
                     horizontalAlignment: Qt.AlignCenter
@@ -90,19 +104,40 @@ Window {
         }
 
         Button {
-            text: "启动"
+            text: Controller.running ? "停止" : "启动"
             font.pixelSize: 14
             width: 120
             height: 40
-            onClicked: Controller.start()
+            onClicked: {
+                if (Controller.running) {
+                    Controller.stop()
+                } else {
+                    Controller.start()
+                }
+            }
+            background: Rectangle {
+                color: Controller.running ? "#e74c3c" : "#2ecc71"
+                radius: 5
+            }
         }
 
         Button {
-            text: "停止"
+            text: Controller.AIRunning ? "暂停检测" : "开始检测"
             font.pixelSize: 14
             width: 120
             height: 40
-            onClicked: Controller.stop()
+            enabled: Controller.running
+            onClicked: {
+                if (Controller.AIRunning) {
+                    Controller.stopAI()
+                } else {
+                    Controller.startAI()
+                }
+            }
+            background: Rectangle {
+                color: Controller.AIRunning ? "#e67e22" : "#3498db"
+                radius: 5
+            }
         }
 
         Button {
@@ -111,6 +146,18 @@ Window {
             width: 120
             height: 40
             onClicked: videoDialog.open()
+        }
+
+        Button {
+            text: video_screen.drawMode ? "取消绘制" : "绘制统计线"
+            font.pixelSize: 14
+            width: 120
+            height: 40
+            onClicked: video_screen.drawMode = !video_screen.drawMode
+            background: Rectangle {
+                color: video_screen.drawMode ? "#e74c3c" : "#3498db"
+                radius: 5
+            }
         }
 
         Button {

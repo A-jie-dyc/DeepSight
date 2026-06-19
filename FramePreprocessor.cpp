@@ -9,9 +9,7 @@ FramePreprocessor::FramePreprocessor(QObject *parent)
 
 void FramePreprocessor::preProcess(const cv::Mat &mat)
 {
-    //BGR->RGB
     cv::cvtColor(mat,m_matForDraw,cv::COLOR_BGR2RGB);
-
     // Letterbox: 等比例缩放 + 灰色填充，保持宽高比
     float scale = std::min((float)MODEL_WIDTH / m_matForDraw.cols,
                            (float)MODEL_HEIGHT / m_matForDraw.rows);
@@ -45,10 +43,31 @@ void FramePreprocessor::preProcess(const cv::Mat &mat)
 
 void FramePreprocessor::onFrameReady(const cv::Mat &rawMat)
 {
-    if(rawMat.empty() || !m_isRunning) return;
+    if(rawMat.empty()) return;
+
+    if(!m_isRunning) {
+        cv::cvtColor(rawMat,m_matForDraw,cv::COLOR_BGR2RGB);
+        emit previewFrameReady(matToQImage(m_matForDraw));
+        return;
+    }
+
+    uint64_t currentFrameId = m_frameId++;
+    m_params.frameId = currentFrameId;
 
     preProcess(rawMat);
 
-    emit AIInputReady(m_matForAI.clone(), m_params);
-    emit sendFrame(m_matForDraw.clone());
+    emit AIInputReady(currentFrameId, m_matForAI.clone(), m_params);
+    emit sendFrame(currentFrameId, m_matForDraw.clone());
+}
+
+QImage FramePreprocessor::matToQImage(const cv::Mat &rgbMat)
+{
+    QImage img(rgbMat.data, rgbMat.cols, rgbMat.rows,
+               rgbMat.step, QImage::Format_RGB888);
+    return img.copy();
+}
+
+void FramePreprocessor::resetFrameId()
+{
+    m_frameId.store(0);
 }

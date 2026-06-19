@@ -5,13 +5,13 @@ OutputPostprocessor::OutputPostprocessor(QObject *parent)
     : QObject{parent}
 {}
 
-void OutputPostprocessor::onOutputReady(const std::vector<float> &output, const PreprocessParams &params)
+void OutputPostprocessor::onOutputReady(uint64_t frameId, const std::vector<float> &output, const PreprocessParams &params)
 {
     if(!m_isRunning)
         return;
 
     postProcess(output.data(), params);
-    emit postProcessReady(m_detBoxes);
+    emit postProcessReady(frameId, m_detBoxes);
 }
 
 void OutputPostprocessor::postProcess(const float *output, const PreprocessParams &params)

@@ -49,57 +49,139 @@ Controller::Controller(QObject *parent)
 
 void Controller::openCamera()
 {
-    stop();
-    QMetaObject::invokeMethod(m_media,"openMedia",Q_ARG(QString, "0"));
+    openMedia("0");
 }
 
 void Controller::openVideo(const QString &videoPath)
 {
+    openMedia(videoPath);
+}
+
+void Controller::openMedia(const QString &path)
+{
     stop();
-    QMetaObject::invokeMethod(m_media,"openMedia",Q_ARG(QString, videoPath));
+    QMetaObject::invokeMethod(m_media,"openMedia",Q_ARG(QString, path));
+}
+
+void Controller::startAI()
+{
+    if(!m_modelReady) {
+        QMetaObject::invokeMethod(m_ai,&AIAnalysis::initModel,Qt::QueuedConnection);
+        return;
+    }
+    if(!m_AIRunning) {
+        QMetaObject::invokeMethod(m_counter,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_painter,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_track,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_post,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_ai,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_pre,"setRunning",Q_ARG(bool, true));
+        QMetaObject::invokeMethod(m_pre, &FramePreprocessor::resetFrameId, Qt::QueuedConnection);
+        m_AIRunning = true;
+        emit AIRunningChanged();
+    }
+}
+
+void Controller::stopAI()
+{
+    if(m_AIRunning) {
+        QMetaObject::invokeMethod(m_pre,"setRunning",Q_ARG(bool, false));
+        QMetaObject::invokeMethod(m_ai,"setRunning",Q_ARG(bool, false));
+        QMetaObject::invokeMethod(m_post,"setRunning",Q_ARG(bool, false));
+        QMetaObject::invokeMethod(m_track,"setRunning",Q_ARG(bool, false));
+        QMetaObject::invokeMethod(m_painter,"setRunning",Q_ARG(bool, false));
+        QMetaObject::invokeMethod(m_counter,"setRunning",Q_ARG(bool, false));
+        m_AIRunning = false;
+        emit AIRunningChanged();
+    }
 }
 
 void Controller::start()
 {
-    emit runningChanged(true);
-
-    if(m_modelReady)
-        QMetaObject::invokeMethod(m_media,&MediaCapture::startCapture,Qt::QueuedConnection);
-    else
-        QMetaObject::invokeMethod(m_ai,&AIAnalysis::initModel,Qt::QueuedConnection);
+    if(!m_running) {
+        startAI();
+        QMetaObject::invokeMethod(m_media, &MediaCapture::startCapture, Qt::QueuedConnection);
+        m_running = true;
+        emit runningChanged();
+    }
 }
 
 void Controller::stop()
 {
-    emit runningChanged(false);
-
-    QMetaObject::invokeMethod(m_media,&MediaCapture::stopCapture,Qt::BlockingQueuedConnection);
+    if(m_running) {
+        QMetaObject::invokeMethod(m_media, &MediaCapture::stopCapture, Qt::BlockingQueuedConnection);
+        stopAI();
+        m_running = false;
+        emit runningChanged();
+    }
 }
 
 void Controller::initConnections()
 {
-    connect(m_ai,&AIAnalysis::modelReady,this,[this](){ m_modelReady = true; },Qt::QueuedConnection);
+    connect(m_ai, &AIAnalysis::modelReady,this,[this](){ m_modelReady = true; }, Qt::QueuedConnection);
 
-    connect(m_media,&MediaCapture::frameReady,m_pre,&FramePreprocessor::onFrameReady,Qt::QueuedConnection);
-    connect(m_pre,&FramePreprocessor::sendFrame,m_painter,&VisionPainter::receiveFrame,Qt::QueuedConnection);
-    connect(m_pre,&FramePreprocessor::AIInputReady,m_ai,&AIAnalysis::onAIInputReady,Qt::QueuedConnection);
-    connect(m_ai,&AIAnalysis::AIOutputReady,m_post,&OutputPostprocessor::onOutputReady,Qt::QueuedConnection);
-    connect(m_post,&OutputPostprocessor::postProcessReady,m_track,&TrackManager::onPostProcessReady,Qt::QueuedConnection);
-    connect(m_track,&TrackManager::trackReady,m_painter,&VisionPainter::onTrackReady,Qt::QueuedConnection);
-    connect(m_track,&TrackManager::trackReady,m_counter,&FlowCounter::onTrackReady,Qt::QueuedConnection);
-    connect(m_painter,&VisionPainter::paintReady,this,&Controller::frameDeliver,Qt::QueuedConnection);
-    connect(m_counter,&FlowCounter::flowDataChanged,this,[this](int enter, int people){
+    connect(m_media, &MediaCapture::frameReady, m_pre, &FramePreprocessor::onFrameReady, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::previewFrameReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::sendFrame, m_painter, &VisionPainter::receiveFrame, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::AIInputReady, m_ai, &AIAnalysis::onAIInputReady, Qt::QueuedConnection);
+    connect(m_ai, &AIAnalysis::AIOutputReady, m_post, &OutputPostprocessor::onOutputReady, Qt::QueuedConnection);
+    connect(m_post, &OutputPostprocessor::postProcessReady,m_track, &TrackManager::onPostProcessReady, Qt::QueuedConnection);
+    connect(m_track, &TrackManager::trackReady, m_painter, &VisionPainter::onTrackReady, Qt::QueuedConnection);
+    connect(m_track, &TrackManager::trackReady, m_counter, &FlowCounter::onTrackReady, Qt::QueuedConnection);
+    connect(m_painter, &VisionPainter::paintReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
+    connect(m_counter, &FlowCounter::flowDataChanged, this, [this](int enter, int people) {
         m_enterTotal = enter;
         m_currentPeople = people;
         emit flowDataUpdated();
-    });
+    }, Qt::QueuedConnection);
+    connect(this, &Controller::countLineChanged, m_counter,&FlowCounter::setCountLine, Qt::QueuedConnection);
+    connect(this, &Controller::countLineChanged, m_painter,&VisionPainter::setCountLine, Qt::QueuedConnection);
 
-    connect(this,&Controller::runningChanged,m_pre,&FramePreprocessor::setRunning,Qt::QueuedConnection);
-    connect(this,&Controller::runningChanged,m_ai,&AIAnalysis::setRunning,Qt::QueuedConnection);
-    connect(this,&Controller::runningChanged,m_post,&OutputPostprocessor::setRunning,Qt::QueuedConnection);
-    connect(this,&Controller::runningChanged,m_track,&TrackManager::setRunning,Qt::QueuedConnection);
-    connect(this,&Controller::runningChanged,m_painter,&VisionPainter::setRunning,Qt::QueuedConnection);
-    connect(this,&Controller::runningChanged,m_counter,&FlowCounter::setRunning,Qt::QueuedConnection);
+    connect(m_media, &MediaCapture::errorOccurred, this, &Controller::handleError);
+    connect(m_ai, &AIAnalysis::errorOccurred, this ,&Controller::handleError);
+}
+
+void Controller::handleError(ErrorDef::ErrorType type, const QString &msg)
+{
+    ErrorInfo err;
+    err.errorType = type;
+    err.errorMessage = msg;
+
+    // 构建完整的错误信息
+    switch (type) {
+    case ErrorDef::Error_Camera:
+        err.errorLevel = ErrorDef::ErrorLevel_Critical;
+        err.errorTitle = QStringLiteral("摄像头打开失败");
+        err.errorSuggestion = QStringLiteral("请检查设备是否正常连接、是否被其他软件占用，可尝试插拔设备后重试");
+        stop();
+        break;
+    case ErrorDef::Error_VideoOpen:
+        err.errorLevel = ErrorDef::ErrorLevel_Critical;
+        err.errorTitle = QStringLiteral("视频文件无法打开");
+        err.errorSuggestion = QStringLiteral("请检查文件路径是否正确、文件是否损坏，或尝试更换其他视频文件");
+        stop();
+        break;
+    case ErrorDef::Error_ModelLoad:
+        err.errorLevel = ErrorDef::ErrorLevel_Critical;
+        err.errorTitle = QStringLiteral("AI模型加载失败");
+        err.errorSuggestion = QStringLiteral("请检查models目录下是否存在模型文件，或重新安装程序");
+        m_modelReady = false;
+        break;
+    case ErrorDef::Error_LineInvalid:
+        err.errorLevel = ErrorDef::ErrorLevel_Warning;
+        err.errorTitle = QStringLiteral("统计线绘制无效");
+        err.errorSuggestion = QStringLiteral("请按住鼠标左键拖动绘制更长的线段，确保跨越人员通行区域");
+        break;
+    default:
+        err.errorLevel = ErrorDef::ErrorLevel_Critical;
+        err.errorTitle = QStringLiteral("系统异常");
+        err.errorSuggestion = QStringLiteral("请重启程序后重试，若问题持续请联系开发者");
+        break;
+    }
+
+    m_lastError = err;
+    emit errorHappened(err);
+    emit errorInfoChanged();
 }
 
 void Controller::resetFlowCount()
@@ -118,6 +200,21 @@ int Controller::getEnterTotal() const
 int Controller::getCurrentPeople() const
 {
     return m_currentPeople;
+}
+
+bool Controller::isRunning() const
+{
+    return m_running;
+}
+
+bool Controller::isAIRunning() const
+{
+    return m_AIRunning;
+}
+
+ErrorInfo Controller::lastError() const
+{
+    return m_lastError;
 }
 
 Controller::~Controller()
