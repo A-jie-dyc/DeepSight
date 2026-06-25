@@ -11,9 +11,10 @@ class OutputPostprocessor : public QObject
 public:
     explicit OutputPostprocessor(QObject *parent = nullptr);
 
+    void setRunning(bool running) { m_isRunning.store(running); }
+
 public slots:
     void onOutputReady(uint64_t frameId, const std::vector<float> &output, const PreprocessParams &params);
-    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void postProcessReady(uint64_t frameId, const std::vector<DetectionBox> &boxes);

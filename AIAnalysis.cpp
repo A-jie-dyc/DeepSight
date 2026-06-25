@@ -9,12 +9,21 @@ AIAnalysis::AIAnalysis(QObject *parent)
 
 void AIAnalysis::onAIInputReady(uint64_t frameId, const cv::Mat &matForAI, const PreprocessParams &params)
 {
-    if(!m_isRunning)
+    if(!m_isRunning) {
+        m_countSeq.fetch_add(1, std::memory_order_release);
+        m_totalFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_dropFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_countSeq.fetch_add(1, std::memory_order_release);
         return;
+    }
 
     bool expected = false;
     if(!m_busy.compare_exchange_strong(expected, true)) {
         qDebug()<<"AI忙，丢一帧";
+        m_countSeq.fetch_add(1, std::memory_order_release);
+        m_totalFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_dropFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_countSeq.fetch_add(1, std::memory_order_release);
         return;
     }
     std::optional<std::vector<float>> output;
@@ -22,14 +31,28 @@ void AIAnalysis::onAIInputReady(uint64_t frameId, const cv::Mat &matForAI, const
         output = infer(matForAI, params);
     } catch (...) {
         qDebug()<<"AI分析失败,帧号:"<<frameId;
+        m_countSeq.fetch_add(1, std::memory_order_release);
+        m_totalFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_dropFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_countSeq.fetch_add(1, std::memory_order_release);
         m_busy.store(false);
         return;
     }
 
     m_busy.store(false);
 
-    if(output.has_value())
+    if(output.has_value()) {
         emit AIOutputReady(frameId, std::move(output.value()), params);
+        m_countSeq.fetch_add(1, std::memory_order_release);
+        m_totalFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_inferFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_countSeq.fetch_add(1, std::memory_order_release);
+    }else {
+        m_countSeq.fetch_add(1, std::memory_order_release);
+        m_totalFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_dropFrameCount.fetch_add(1, std::memory_order_relaxed);
+        m_countSeq.fetch_add(1, std::memory_order_release);
+    }
 }
 
 std::optional<std::vector<float>> AIAnalysis::infer(const cv::Mat &mat, const PreprocessParams &params)
@@ -90,7 +113,7 @@ void AIAnalysis::initModel()
         //设置模型图优化
         session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASIC);
 
-        m_session = std::make_unique<Ort::Session>(g_ortEnv,MODEL_PATH,session_options);
+        m_session = std::make_unique<Ort::Session>(getOrtEnv(),MODEL_PATH,session_options);
         //创建临时内存分配器获取输入输出节点
         Ort::AllocatorWithDefaultOptions allocator;
         auto inputName = m_session->GetInputNameAllocated(0,allocator);
@@ -109,7 +132,59 @@ void AIAnalysis::initModel()
     }
 }
 
+FpsCount AIAnalysis::fetchAndResetAllCount()
+{
+    uint64_t seq0, seq1;
+    uint64_t infer, drop, total;
+    do {
+        //等待序列号为偶数
+        do {
+            seq0 = m_countSeq.load(std::memory_order_acquire);
+        } while (seq0 & 1);
+
+        //读取计数器
+        total = m_totalFrameCount.load(std::memory_order_acquire);
+        infer = m_inferFrameCount.load(std::memory_order_acquire);
+        drop  = m_dropFrameCount.load(std::memory_order_acquire);
+
+        //再次读取序列号
+        seq1 = m_countSeq.load(std::memory_order_acquire);
+    } while (seq0 != seq1);     //若中途发生了更新，重试
+
+    FpsCount count;
+    count.inferFrame = infer - m_lastInfer;
+    count.dropFrame = drop  - m_lastDrop;
+    count.totalFrame = total - m_lastTotal;
+
+    m_lastInfer = infer;
+    m_lastDrop  = drop;
+    m_lastTotal = total;
+
+    return count;
+}
+
+void AIAnalysis::resetAllCount()
+{
+    //确保没有正在进行的更新
+    while (m_countSeq.load() & 1);
+    m_totalFrameCount.store(0);
+    m_inferFrameCount.store(0);
+    m_dropFrameCount.store(0);
+    m_countSeq.store(m_countSeq.load() + 2);      //保持偶数，并让读取端感知变化（序列号跳变）
+    //同时清空读取端的 last 基准值（可以在读取端主动调用一次 fetchAndResetAllCount 忽略结果）
+    m_lastInfer = 0;
+    m_lastDrop = 0;
+    m_lastTotal = 0;
+}
+
+Ort::Env &AIAnalysis::getOrtEnv()
+{
+    static Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "AIModel");
+    return env;
+}
+
 AIAnalysis::~AIAnalysis()
 {
+    resetAllCount();
     m_session.reset();
 }

@@ -110,14 +110,22 @@ void VisionPainter::onTrackReady(uint64_t frameId, const std::vector<Track> &raw
         return;
 
     QImage targetImage;
-    {
-        QMutexLocker locker(&m_mutex);
-        if(!m_frameCache.contains(frameId))
-            return;
 
+    if(m_frameCache.contains(frameId)) {
         targetImage = m_frameCache.take(frameId);
+    }else if(!m_frameCache.isEmpty()) {
+        qDebug()<<"就近旧帧兜底匹配";
+        uint64_t bestId = 0;
+        for(auto it = m_frameCache.keyBegin(); it != m_frameCache.keyEnd(); ++it) {
+            if(*it <= frameId && *it > bestId)
+                bestId = *it;
+        }
+        if(bestId == 0)
+            bestId = *std::min_element(m_frameCache.keyBegin(), m_frameCache.keyEnd());
+        targetImage = m_frameCache.take(bestId);
+    }else {
+        return;
     }
-
     if(!targetImage.isNull())
         draw(targetImage,rawTracks);
 }
@@ -140,13 +148,11 @@ void VisionPainter::receiveFrame(uint64_t frameId, const cv::Mat &matForDraw)
         return;
 
     QImage img = convertMatToQImage(matForDraw);
-    {
-        QMutexLocker locker(&m_mutex);
-        m_frameCache.insert(frameId, img);
 
-        while(m_frameCache.size() > MAX_CACHE_FRAME) {
-            uint64_t oldestId = *std::min_element(m_frameCache.keyBegin(), m_frameCache.keyEnd());
-            m_frameCache.remove(oldestId);
-        }
+    m_frameCache.insert(frameId, img);
+
+    while(m_frameCache.size() > MAX_CACHE_FRAME) {
+        uint64_t oldestId = *std::min_element(m_frameCache.keyBegin(), m_frameCache.keyEnd());
+        m_frameCache.remove(oldestId);
     }
 }

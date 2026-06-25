@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QThread>
+#include <QTimer>
+#include <QElapsedTimer>
 #include "MediaCapture.h"
 #include "FramePreprocessor.h"
 #include "AIAnalysis.h"
@@ -14,18 +16,25 @@
 class Controller : public QObject
 {
     Q_OBJECT
+    //属性
     Q_PROPERTY(int enterTotal READ getEnterTotal NOTIFY flowDataUpdated)
     Q_PROPERTY(int currentPeople READ getCurrentPeople NOTIFY flowDataUpdated)
-    Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
-    Q_PROPERTY(bool AIRunning READ isAIRunning NOTIFY AIRunningChanged)
+    Q_PROPERTY(bool running READ getRunning NOTIFY runningChanged)
+    Q_PROPERTY(bool AIRunning READ getAIRunning NOTIFY AIRunningChanged)
+    Q_PROPERTY(bool mediaOpened READ getMediaOpened NOTIFY mediaOpenedChanged)
     Q_PROPERTY(ErrorInfo lastError READ lastError NOTIFY errorInfoChanged)
+    Q_PROPERTY(float inferFps READ getInferFps NOTIFY inferFpsChanged)
+    Q_PROPERTY(float totalFps READ getTotalFps NOTIFY totalFpsChanged)
+    Q_PROPERTY(float dropRate READ getDropRate NOTIFY dropRateChanged)
 
 public:
     explicit Controller(QObject *parent = nullptr);
     ~Controller() override;
 
+    //接口
     Q_INVOKABLE void openCamera();
     Q_INVOKABLE void openVideo(const QString &videoPath);
+    Q_INVOKABLE void closeMedia();
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void startAI();
@@ -36,18 +45,29 @@ public:
 
     int getEnterTotal() const;
     int getCurrentPeople() const;
-    bool isRunning() const;
-    bool isAIRunning() const;
+    bool getRunning() const;
+    bool getAIRunning() const;
+    bool getMediaOpened() const;
     ErrorInfo lastError() const;
+    float getInferFps() const;
+    float getTotalFps() const;
+    float getDropRate() const;
 
 signals:
     void flowDataUpdated();
     void runningChanged();
     void AIRunningChanged();
+    void mediaOpenedChanged();
     void errorInfoChanged();
     void frameDeliver(const QImage &image);
     void countLineChanged(const Line &line);
     void errorHappened(const ErrorInfo &errorInfo);
+    void inferFpsChanged();
+    void totalFpsChanged();
+    void dropRateChanged();
+
+private slots:
+    void onFpsTimerTimeout();
 
 private:
     void initConnections();
@@ -71,10 +91,19 @@ private:
 
     int m_enterTotal = 0;
     int m_currentPeople = 0;
+
     bool m_modelReady = false;
     bool m_running = false;
     bool m_AIRunning = false;
+    bool m_mediaOpened = false;
+
     ErrorInfo m_lastError;
+
+    QTimer *m_fpsTimer = nullptr;
+    QElapsedTimer m_fpsElapsed;
+    float m_inferFps = 0.0f;
+    float m_totalFps = 0.0f;
+    float m_dropRate = 0.0f;
 };
 
 #endif // CONTROLLER_H

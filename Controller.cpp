@@ -1,4 +1,5 @@
 #include "Controller.h"
+#include <QDateTime>
 
 Controller::Controller(QObject *parent)
     : QObject{parent},
@@ -47,20 +48,57 @@ Controller::Controller(QObject *parent)
     QMetaObject::invokeMethod(m_ai,&AIAnalysis::initModel,Qt::QueuedConnection);
 }
 
-void Controller::openCamera()
+void Controller::initConnections()
 {
-    openMedia("0");
+    connect(m_ai, &AIAnalysis::modelReady,this,[this](){
+        m_modelReady = true;
+    }, Qt::QueuedConnection);
+
+    connect(m_media, &MediaCapture::frameReady, m_pre, &FramePreprocessor::onFrameReady, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::previewFrameReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::sendFrame, m_painter, &VisionPainter::receiveFrame, Qt::QueuedConnection);
+    connect(m_pre, &FramePreprocessor::AIInputReady, m_ai, &AIAnalysis::onAIInputReady, Qt::QueuedConnection);
+    connect(m_ai, &AIAnalysis::AIOutputReady, m_post, &OutputPostprocessor::onOutputReady, Qt::QueuedConnection);
+    connect(m_post, &OutputPostprocessor::postProcessReady,m_track, &TrackManager::onPostProcessReady, Qt::QueuedConnection);
+    connect(m_track, &TrackManager::trackReady, m_painter, &VisionPainter::onTrackReady, Qt::QueuedConnection);
+    connect(m_track, &TrackManager::trackReady, m_counter, &FlowCounter::onTrackReady, Qt::QueuedConnection);
+    connect(m_painter, &VisionPainter::paintReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
+    connect(m_counter, &FlowCounter::flowDataChanged, this, [this](int enter, int people) {
+        m_enterTotal = enter;
+        m_currentPeople = people;
+        emit flowDataUpdated();
+    }, Qt::QueuedConnection);
+
+    m_fpsTimer = new QTimer(this);
+    m_fpsTimer->setInterval(200);
+    m_fpsTimer->setTimerType(Qt::PreciseTimer);
+    connect(m_fpsTimer, &QTimer::timeout, this, &Controller::onFpsTimerTimeout);
+    connect(this, &Controller::AIRunningChanged, this, [this](){
+        if(m_AIRunning) {
+            m_ai->resetAllCount();
+            m_fpsElapsed.start();
+            m_fpsTimer->start();
+        }else {
+            m_fpsTimer->stop();
+        }
+    });
+
+    connect(this, &Controller::countLineChanged, m_counter,&FlowCounter::setCountLine, Qt::QueuedConnection);
+    connect(this, &Controller::countLineChanged, m_painter,&VisionPainter::setCountLine, Qt::QueuedConnection);
+
+    connect(m_media, &MediaCapture::errorOccurred, this, &Controller::handleError);
+    connect(m_ai, &AIAnalysis::errorOccurred, this, &Controller::handleError);
 }
 
-void Controller::openVideo(const QString &videoPath)
-{
-    openMedia(videoPath);
-}
+void Controller::openCamera() { openMedia("0"); }
+void Controller::openVideo(const QString &videoPath) { openMedia(videoPath); }
 
 void Controller::openMedia(const QString &path)
 {
     stop();
     QMetaObject::invokeMethod(m_media,"openMedia",Q_ARG(QString, path));
+    m_mediaOpened = true;
+    emit mediaOpenedChanged();
 }
 
 void Controller::startAI()
@@ -70,13 +108,13 @@ void Controller::startAI()
         return;
     }
     if(!m_AIRunning) {
-        QMetaObject::invokeMethod(m_counter,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_painter,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_track,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_post,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_ai,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_pre,"setRunning",Q_ARG(bool, true));
-        QMetaObject::invokeMethod(m_pre, &FramePreprocessor::resetFrameId, Qt::QueuedConnection);
+        m_counter->setRunning(true);
+        m_painter->setRunning(true);
+        m_track->setRunning(true);
+        m_post->setRunning(true);
+        m_ai->setRunning(true);
+        m_pre->setRunning(true);
+        m_pre->resetFrameId();
         m_AIRunning = true;
         emit AIRunningChanged();
     }
@@ -85,12 +123,12 @@ void Controller::startAI()
 void Controller::stopAI()
 {
     if(m_AIRunning) {
-        QMetaObject::invokeMethod(m_pre,"setRunning",Q_ARG(bool, false));
-        QMetaObject::invokeMethod(m_ai,"setRunning",Q_ARG(bool, false));
-        QMetaObject::invokeMethod(m_post,"setRunning",Q_ARG(bool, false));
-        QMetaObject::invokeMethod(m_track,"setRunning",Q_ARG(bool, false));
-        QMetaObject::invokeMethod(m_painter,"setRunning",Q_ARG(bool, false));
-        QMetaObject::invokeMethod(m_counter,"setRunning",Q_ARG(bool, false));
+        m_pre->setRunning(false);
+        m_ai->setRunning(false);
+        m_post->setRunning(false);
+        m_track->setRunning(false);
+        m_painter->setRunning(false);
+        m_counter->setRunning(false);
         m_AIRunning = false;
         emit AIRunningChanged();
     }
@@ -116,29 +154,54 @@ void Controller::stop()
     }
 }
 
-void Controller::initConnections()
+void Controller::closeMedia()
 {
-    connect(m_ai, &AIAnalysis::modelReady,this,[this](){ m_modelReady = true; }, Qt::QueuedConnection);
+    stop();
+    emit frameDeliver(QImage());
+    resetFlowCount();
+    m_mediaOpened = false;
+    emit mediaOpenedChanged();
+}
 
-    connect(m_media, &MediaCapture::frameReady, m_pre, &FramePreprocessor::onFrameReady, Qt::QueuedConnection);
-    connect(m_pre, &FramePreprocessor::previewFrameReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
-    connect(m_pre, &FramePreprocessor::sendFrame, m_painter, &VisionPainter::receiveFrame, Qt::QueuedConnection);
-    connect(m_pre, &FramePreprocessor::AIInputReady, m_ai, &AIAnalysis::onAIInputReady, Qt::QueuedConnection);
-    connect(m_ai, &AIAnalysis::AIOutputReady, m_post, &OutputPostprocessor::onOutputReady, Qt::QueuedConnection);
-    connect(m_post, &OutputPostprocessor::postProcessReady,m_track, &TrackManager::onPostProcessReady, Qt::QueuedConnection);
-    connect(m_track, &TrackManager::trackReady, m_painter, &VisionPainter::onTrackReady, Qt::QueuedConnection);
-    connect(m_track, &TrackManager::trackReady, m_counter, &FlowCounter::onTrackReady, Qt::QueuedConnection);
-    connect(m_painter, &VisionPainter::paintReady, this, &Controller::frameDeliver, Qt::QueuedConnection);
-    connect(m_counter, &FlowCounter::flowDataChanged, this, [this](int enter, int people) {
-        m_enterTotal = enter;
-        m_currentPeople = people;
-        emit flowDataUpdated();
-    }, Qt::QueuedConnection);
-    connect(this, &Controller::countLineChanged, m_counter,&FlowCounter::setCountLine, Qt::QueuedConnection);
-    connect(this, &Controller::countLineChanged, m_painter,&VisionPainter::setCountLine, Qt::QueuedConnection);
+void Controller::onFpsTimerTimeout()
+{
+    FpsCount count = m_ai->fetchAndResetAllCount();
+    //计算时间差
+    qint64 elapsedMs = m_fpsElapsed.restart();
+    float deltaSec = elapsedMs / 1000.0f;
 
-    connect(m_media, &MediaCapture::errorOccurred, this, &Controller::handleError);
-    connect(m_ai, &AIAnalysis::errorOccurred, this ,&Controller::handleError);
+    //防除零保护
+    if(deltaSec < 0.001f) {
+        return;
+    }
+
+    float instantInfer = static_cast<float>(count.inferFrame) / deltaSec;
+    float instantTotal = static_cast<float>(count.totalFrame) / deltaSec;
+    float instantDrop = (count.totalFrame > 0) ?
+                            static_cast<float>(count.dropFrame) / static_cast<float>(count.totalFrame) * 100.0f
+                            : 0.0f;
+
+    //指数加权平滑（0.3旧值 + 0.7新值）
+    float smoothedInfer = m_inferFps * 0.3f + instantInfer * 0.7f;
+    float smoothedTotal = m_totalFps * 0.3f + instantTotal * 0.7f;
+    float smoothedDrop = m_dropRate * 0.3f + instantDrop * 0.7f;
+
+    float oldInferFps = m_inferFps;
+    float oldTotalFps = m_totalFps;
+    float oldDropRate = m_dropRate;
+    m_inferFps = smoothedInfer;
+    m_totalFps = smoothedTotal;
+    m_dropRate = smoothedDrop;
+    //变化超过阈值更新UI
+    if(qAbs(oldInferFps - m_inferFps) > 0.1f) {
+        emit inferFpsChanged();
+    }
+    if(qAbs(oldTotalFps - m_totalFps) > 0.1f) {
+        emit totalFpsChanged();
+    }
+    if(qAbs(oldDropRate - m_dropRate) > 0.1f) {
+        emit dropRateChanged();
+    }
 }
 
 void Controller::handleError(ErrorDef::ErrorType type, const QString &msg)
@@ -147,7 +210,7 @@ void Controller::handleError(ErrorDef::ErrorType type, const QString &msg)
     err.errorType = type;
     err.errorMessage = msg;
 
-    // 构建完整的错误信息
+    //构建完整的错误信息
     switch (type) {
     case ErrorDef::Error_Camera:
         err.errorLevel = ErrorDef::ErrorLevel_Critical;
@@ -192,33 +255,22 @@ void Controller::resetFlowCount()
     emit flowDataUpdated();
 }
 
-int Controller::getEnterTotal() const
-{
-    return m_enterTotal;
-}
-
-int Controller::getCurrentPeople() const
-{
-    return m_currentPeople;
-}
-
-bool Controller::isRunning() const
-{
-    return m_running;
-}
-
-bool Controller::isAIRunning() const
-{
-    return m_AIRunning;
-}
-
-ErrorInfo Controller::lastError() const
-{
-    return m_lastError;
-}
+int Controller::getEnterTotal() const { return m_enterTotal; }
+int Controller::getCurrentPeople() const { return m_currentPeople; }
+bool Controller::getRunning() const { return m_running; }
+bool Controller::getAIRunning() const { return m_AIRunning; }
+bool Controller::getMediaOpened() const { return m_mediaOpened; }
+ErrorInfo Controller::lastError() const { return m_lastError; }
+float Controller::getInferFps() const { return m_inferFps; }
+float Controller::getTotalFps() const { return m_totalFps; }
+float Controller::getDropRate() const { return m_dropRate; }
 
 Controller::~Controller()
 {
+    if(m_fpsTimer && m_fpsTimer->isActive()) {
+        m_fpsTimer->stop();
+    }
+
     stop();
 
     m_media->deleteLater();

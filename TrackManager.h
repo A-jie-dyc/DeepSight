@@ -10,9 +10,10 @@ class TrackManager : public QObject
 public:
     explicit TrackManager(QObject *parent = nullptr);
 
+    void setRunning(bool running) { m_isRunning.store(running); }
+
 public slots:
     void onPostProcessReady(uint64_t frameId, const std::vector<DetectionBox> &rawBoxes);
-    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void trackReady(uint64_t frameId, const std::vector<Track> &tracks);

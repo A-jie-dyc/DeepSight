@@ -10,7 +10,7 @@ FramePreprocessor::FramePreprocessor(QObject *parent)
 void FramePreprocessor::preProcess(const cv::Mat &mat)
 {
     cv::cvtColor(mat,m_matForDraw,cv::COLOR_BGR2RGB);
-    // Letterbox: 等比例缩放 + 灰色填充，保持宽高比
+    //Letterbox: 等比例缩放 + 灰色填充，保持宽高比
     float scale = std::min((float)MODEL_WIDTH / m_matForDraw.cols,
                            (float)MODEL_HEIGHT / m_matForDraw.rows);
     int newW = (int)(m_matForDraw.cols * scale);

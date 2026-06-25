@@ -68,7 +68,7 @@ void MediaCapture::startCapture()
         connect(m_timer,&QTimer::timeout,this,&MediaCapture::grabFrame);
     }
     if(!m_timer->isActive())
-        m_timer->start(50);
+        m_timer->start(CAPTURE_INTERVAL_MS);
     qDebug()<<"开始采集";
 }
 

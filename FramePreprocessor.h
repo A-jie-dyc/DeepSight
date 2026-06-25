@@ -12,10 +12,11 @@ class FramePreprocessor : public QObject
 public:
     explicit FramePreprocessor(QObject *parent = nullptr);
 
+    void setRunning(bool running) { m_isRunning.store(running); }
+    void resetFrameId();
+
 public slots:
     void onFrameReady(const cv::Mat &rawMat);       //接收
-    void resetFrameId();
-    void setRunning(bool running) { m_isRunning.store(running); }
 
 signals:
     void sendFrame(uint64_t frameId, const cv::Mat &matForDraw);

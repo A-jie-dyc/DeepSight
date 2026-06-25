@@ -14,9 +14,10 @@ public:
     explicit FlowCounter(QObject *parent = nullptr);
     ~FlowCounter() override;
 
+    void setRunning(bool running) { m_isRunning.store(running); }
+
 public slots:
     void onTrackReady(uint64_t, const std::vector<Track> &rawTracks);
-    void setRunning(bool running) { m_isRunning.store(running); }
     void resetCountData();
     void setCountLine(const Line &line);
 

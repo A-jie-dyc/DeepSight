@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <opencv2/core.hpp>
 
+//采集帧间隔
+constexpr int CAPTURE_INTERVAL_MS = 50;
+
 //模型常量
 constexpr int MODEL_WIDTH = 640;                                        //宽
 constexpr int MODEL_HEIGHT = 640;                                       //高
@@ -98,6 +101,13 @@ public:
     QString title() const { return errorTitle; }
     QString message() const { return errorMessage; }
     QString suggestion() const { return errorSuggestion; }
+};
+
+struct FpsCount
+{
+    int inferFrame = 0;
+    int dropFrame = 0;
+    int totalFrame = 0;
 };
 
 Q_DECLARE_METATYPE(cv::Mat)
